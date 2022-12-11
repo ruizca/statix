@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "statix"
+version = "1.0.0"
+authors = [
+  { name="Angel Ruiz", email="angel.ruizca@gmail.com" },
+  { name="Antonis Georgakakis", email="age@noa.gr" },
+]
+description = "Space and Time Algorithm for Transients In X-rays"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+  "astropy",
+  "joblib",
+  "numpy",
+  "mocpy",
+  "msvst",
+  "photutils",
+  "PyWavelets",
+  "regions",
+  "rich",
+  "scipy",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: POSIX :: Linux",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Astronomy",
+]
+
+[tool.setuptools.packages.find]
+# scanning for namespace packages is true by default in pyproject.toml, so
+# you do NOT need to include the following line.
+namespaces = true
+where = ["src"]
+
+[tool.setuptools.package-data]
+statix = [""]
+"statix.data" = ["*.fits"]
+
+[project.urls]
+"Homepage" = "https://github.com/ruizca/statix"
