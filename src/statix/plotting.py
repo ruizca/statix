@@ -3,6 +3,7 @@ Convinience functions for plotting XMM data
 
 @author: A.Ruiz
 """
+import numpy as np
 from astropy.visualization import simple_norm
 from matplotlib import pyplot as plt
 from matplotlib.text import Text
@@ -92,3 +93,51 @@ def plot_image(
         axins.set_yticks([])
         
         axis.indicate_inset_zoom(axins, edgecolor="r", alpha=1)
+
+
+def plot_lightcurve(ax, lc, lc_bb, animated=False):
+    im = ax.plot(lc[:, 0], color="k", lw=1, animated=animated)
+    im = ax.plot(lc[:, 1], color="grey", lw=1, animated=animated)
+
+    idx = []
+    idx_start = 0
+    for row in lc_bb:
+        idx.append(idx_start + row[2] / 2 - 0.5)
+        idx_start += row[2]
+
+    im = ax.errorbar(
+        idx, 
+        lc_bb[:, 3] / lc_bb[:, 2], 
+        xerr=lc_bb[:, 2]/2, 
+        yerr=np.sqrt(lc_bb[:, 3]) / lc_bb[:, 2],
+        color="k",
+        lw=0,
+        elinewidth=2.5,
+        capsize=5,
+        capthick=2.5,
+        marker="o",
+        ms=8,
+        animated=animated,
+    )
+    im = ax.errorbar(
+        idx, 
+        lc_bb[:, 4] / lc_bb[:, 2], 
+        xerr=lc_bb[:, 2]/2, 
+        yerr=np.sqrt(lc_bb[:, 4]) / lc_bb[:, 2],
+        color="darkgrey",
+        lw=0,
+        elinewidth=2.5,
+        capsize=5,
+        capthick=2.5,
+        marker="o",
+        ms=8,
+        animated=animated,
+    )
+
+    ax.set_xlim(-0.8, 32.3)
+    ax.set_ylim(0)
+
+    ax.set_xlabel("frame index")
+    ax.set_ylabel("counts")
+    
+    return im
