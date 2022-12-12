@@ -282,7 +282,7 @@ def _parse_kwargs_psf(exposure, photomode, kwargs):
         eef = 88  # PN 30 arcsec (7 pixels)  radius
     
     else:
-        eef = 1
+        eef = 100
 
     return energy, eef
 
