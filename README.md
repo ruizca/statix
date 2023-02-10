@@ -25,15 +25,27 @@ for other X-ray imaging missions is possible, but beyond our current capabilitie
 Installation
 ------------
 
-STATiX can be easily installed using ``pip``::
+STATix needs the following software and libraries for a correct installation:
+- C/C++ compiler and make
+- [CMake](http://www.cmake.org)
+- [CFITSIO](https://heasarc.gsfc.nasa.gov/fitsio/) (>V3.31)
+- [pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config/)
+
+In Ubuntu (and other Debian based Linux distributions) these dependencies can be installed via ``apt``:
+
+    sudo apt install gcc make cmake libcfitsio* pkg-config
+
+
+Once these prerequisites are installed, STATiX can be easily installed using ``pip``:
 
     pip install statix
 
 
 Examples
 ---------
-We provide Jupyter notebooks and scripts with examples on how to use STATiX
-with XMM-Newton data.
+
+We provide [Jupyter notebooks and scripts](docs/) with examples on how to use STATiX
+with XMM-Newton data. 
 
 
 [![ahead2020](ahead2020_logo.png)](http://ahead.astro.noa.gr/)
