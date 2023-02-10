@@ -256,6 +256,7 @@ def _parse_kwargs_denoise2d1d(kwargs):
         "kill_last": True,
         "detpos": True,
         "use_non_default_filter": True,
+        "varmodcorr": True,
         "verbose": False,
     }
     return _parse_kwargs_denoise(kwargs, kwargs_default)
