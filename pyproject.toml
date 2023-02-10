@@ -17,7 +17,7 @@ dependencies = [
   "joblib",
   "numpy",
   "mocpy",
-  "msvst @ git+https://github.com/ruizca/msvst",
+  "msvst",
   "photutils",
   "PyWavelets",
   "regions",
