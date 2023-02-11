@@ -184,7 +184,7 @@ def _initial_threshold(allcoeffs):
     Calculate the starting threshold, which is the minimum of 
     maximal coefficients of the image in each dictionary.
     """
-    buf = np.zeros_like(allcoeffs)
+    buf = np.zeros(len(allcoeffs))
 
     for i, coeffs in enumerate(allcoeffs):
         tmp = np.concatenate([c.flatten() for c in coeffs[1:]])
