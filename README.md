@@ -38,7 +38,7 @@ In Ubuntu (and other Debian based Linux distributions) these dependencies can be
 
 Once these prerequisites are installed, STATiX can be easily installed using ``pip``:
 
-    pip install statix
+    pip install xstatix
 
 Although the STATiX source detection pipeline does not need any additional software, some of its side functions related with XMM-Newton data manipulation need a working installation of [SAS](https://www.cosmos.esa.int/web/xmm-newton/what-is-sas). If all the initial data products are already available (images, data cubes, exposure maps, etc) SAS is not needed. Otherwise these products will be generated during running time if SAS is available. All SAS-related functions are in the [xmmsas](src/statix/xmmsas.py) module.
 
