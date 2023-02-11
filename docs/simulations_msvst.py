@@ -3,8 +3,8 @@ from pathlib import Path
 
 from joblib import Parallel, delayed
 
-from exposure import Exposure
-from utils import catch_obsid_error, tqdm_joblib
+from statix.exposure import Exposure
+from statix.utils import catch_obsid_error, tqdm_joblib
 
 def main():
     logging.getLogger().setLevel(logging.INFO)

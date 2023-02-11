@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 import os
-
+from datetime import datetime
 from tempfile import NamedTemporaryFile
 
 import numpy as np
@@ -18,6 +18,25 @@ logger = logging.getLogger(__name__)
 
 IMG_XSIZE = 600
 IMG_YSIZE = 600
+
+
+def make_ccf(path, date=None):
+    if date is None:
+        date = datetime.now()
+        date = date.isoformat()
+
+    if not path.exists():
+        path.mkdir(parents=True)
+
+    cif_path = path.joinpath("ccf.cif")
+    
+    pxsas.run(
+        "cifbuild",
+        calindexset=str(cif_path),
+        withobservationdate=True,
+        observationdate=date,
+    )
+    return cif_path
 
 
 def make_image(evl_path, detector="PN", emin=500, emax=2000, flag=0):
