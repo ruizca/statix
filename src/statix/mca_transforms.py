@@ -44,8 +44,8 @@ def soft_thresholding(coeff, thresh):
 
 def convolution(x, mask, kernel):
     k = _calc_img_kernel(kernel)
-    area = (_calc_img_area(mask, k)).astype(np.float)
-    counts = (_calc_img_counts(x, k, mask)).astype(np.float)
+    area = (_calc_img_area(mask, k)).astype(float)
+    counts = (_calc_img_counts(x, k, mask)).astype(float)
 
     mask_zeros = mask > 0
     counts[mask_zeros] = counts[mask_zeros]/area[mask_zeros]
