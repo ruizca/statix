@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "xstatix"
-version = "1.0.2"
+version = "1.0.3"
 authors = [
   { name="Angel Ruiz", email="angel.ruizca@gmail.com" },
   { name="Antonis Georgakakis", email="age@noa.gr" },
@@ -20,6 +20,7 @@ dependencies = [
   "msvst",
   "photutils",
   "PyWavelets",
+  "pxsas",
   "regions",
   "rich",
   "scipy",
