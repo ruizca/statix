@@ -105,3 +105,4 @@ venv.bak/
 
 .vscode/
 test/
+src/statix/bayesian_blocks.py

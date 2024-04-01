@@ -4,7 +4,7 @@ from pathlib import Path
 from joblib import Parallel, delayed
 
 from statix.exposure import Exposure
-from statix.utils import catch_obsid_error, tqdm_joblib
+from statix.utils import catch_obsid_error, track_joblib
 
 def main():
     logging.getLogger().setLevel(logging.INFO)
@@ -17,7 +17,7 @@ def main():
     ids = list(range(n_sims))
 
     if len(ids) > 1:
-        with tqdm_joblib(desc="Detecting sources with STATiX", total=len(ids)):
+        with track_joblib(desc="Detecting sources with STATiX", total=len(ids)):
             Parallel(n_jobs=n_jobs)(
                 delayed(detect_sources)(id, simulations_path, photomode) for id in ids
             )
@@ -29,7 +29,7 @@ def main():
 def detect_sources(id, simulations_path, photomode="aperture", logtofile=True):
     photomode_tag = set_photomode_tag(photomode)
     msvst_sigma_levels = [3, 4, 5]
-    tthresh = 0.0027
+    time_sigma_level = 3
 
     if logtofile:
         logger_path = simulations_path / f"goodbkg_msvst{photomode_tag}_{id:03d}.log"
@@ -38,23 +38,19 @@ def detect_sources(id, simulations_path, photomode="aperture", logtofile=True):
     exp = set_exposure(id, simulations_path)
     for sigma_level in msvst_sigma_levels:
         logging.info(f"MSVST sigma_level = {sigma_level}")
-        kwargs_denoise = {
-            "sigma_level": sigma_level,
-             "border_mode": 2,
-             "min_scalexy": 2,
-             "max_scalexy": 4,
-             "min_scalez": 1,
-             "max_scalez": 4,
-        }
         srclist_msvst, cube_msvst = exp.detect_sources(
             method="msvst2d1d",
             inpainting=True,
             detmode="peaks",
             photomode=photomode,
-            kwargs_denoise=kwargs_denoise,
-            time_threshold=tthresh,
-            eefcol="EEF70",
-            energy=1000,
+            time_sigma_level=time_sigma_level,
+            eef=70,
+            sigma_level=sigma_level,
+            border_mode=2,
+            min_scalexy=2,
+            max_scalexy=4,
+            min_scalez=1,
+            max_scalez=4,
         )
 
         srclist_path = set_srclist_path(exp.files, f"{photomode_tag}_tt{tthresh}", sigma_level)

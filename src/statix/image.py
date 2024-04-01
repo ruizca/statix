@@ -133,11 +133,11 @@ class Cube:
     def save_as_fits(self, filename):
         save_fits(self.data, filename)
 
-    def fill_gaps(self, mask, method="conv", kernel=None, filename=None):
+    def fill_gaps(self, mask, method="conv", kernel=None, filename=None, **kwargs):
         """
         Returns a new Cube object with the gaps defined in mask filled with counts.
         """
-        cube_filled_data = inpaint.cube_fill_ccd_gaps(self.data, mask, method, kernel)
+        cube_filled_data = inpaint.cube_fill_ccd_gaps(self.data, mask, method, kernel, **kwargs)
         cube_filled = Cube(data=cube_filled_data, time_edges=self.time_edges)
 
         if filename:
@@ -164,8 +164,11 @@ class Cube:
 
 
 class Mask:
-    def __init__(self, expmap, fexp=0.25, fov=False):
-        self.data = self._make(expmap, fov, fexp)
+    def __init__(self, expmap, fexp=0.3, fov=False, is_mask=False):
+        if is_mask:
+            self.data = fits.getdata(expmap)
+        else:
+            self.data = self._make(expmap, fov, fexp)
 
     def __call__(self, target):
         if isinstance(target, Image):
@@ -195,7 +198,7 @@ class Mask:
     def shape(self):
         return self.data.shape
 
-    def _make(self, expmap, fov=False, fexp=0.25):
+    def _make(self, expmap, fov=False, fexp=0.3):
         if fov:
             mask = self._fov_mask(expmap, fexp)
         else:

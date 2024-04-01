@@ -20,11 +20,11 @@ logger = logging.getLogger(__name__)
 
 
 class Exposure:
-    def __init__(self, event_list_file, attitude_file=None, eband="SOFT"):
+    def __init__(self, event_list_file, attitude_file=None, eband="SOFT", **kwargs):
         self.files = ExposureFiles(event_list_file, attitude_file)
         self.orientation, self.camera, self.obsid, self.expid = self._set_attributes()
         self.eband = Eband[eband]
-        self.data = ExposureData(self.files, self.camera.tag, self.eband)
+        self.data = ExposureData(self.files, self.camera.tag, self.eband, **kwargs)
 
     def _set_attributes(self):
         header = fits.getheader(self.files.evt)
@@ -98,6 +98,7 @@ class ExposureFiles:
         path_parts = self.get_path_parts()
         self.exp = self._set_path("imgexp", *path_parts)
         self.img = self._set_path("img", *path_parts)
+        self.mask = self._set_path("imgmask", *path_parts)
         self.cube = self._set_path("cube", *path_parts)
         self.cube_inpaint = self._set_path("cube_inpaint", *path_parts)
 
@@ -124,10 +125,11 @@ class ExposureFiles:
 
 
 class ExposureData:
-    def __init__(self, files, camera, eband):
+    def __init__(self, files, camera, eband, **kwargs):
         self.files = files
         self.camera = camera
         self.eband = eband
+        self.bkg_params = self._parse_bkg_params(**kwargs)
 
         self._detector_frame = None
         self._image = None
@@ -221,9 +223,17 @@ class ExposureData:
     @cached_property
     def mask(self):
         if not self._mask:
-            self._mask = Mask(self.expmap)
+            self._mask = self._set_mask()
 
         return self._mask
+    
+    def _set_mask(self):
+        if self.files.mask.exists():
+            mask= Mask(self.files.mask, is_mask=True)
+        else:
+            mask = Mask(self.expmap)
+
+        return mask
 
     @cached_property
     def mask_fov(self):
@@ -246,8 +256,20 @@ class ExposureData:
     def bkgcube(self):
         if not self._bkgcube:
             logger.info("Calculating background cube")
-            self._bkgcube = BkgCube(
-                self.cube, mask=self.mask, convolve=True, inpaint=True, sigma_level=2, radius_factor=1
-            )
+            self._bkgcube = BkgCube(self.cube, mask=self.mask, **self.bkg_params)
 
         return self._bkgcube
+
+    @staticmethod
+    def _parse_bkg_params(**kwargs):
+        kwargs_default = {
+            "convolve": True,
+            "inpaint": True,
+            "sigma_level": 2,
+            "radius_factor": 1,
+            "radius": 15,
+            "inner_factor": 1,
+            "outer_factor": 5,
+        }
+    
+        return {key: kwargs.pop(key, item) for key, item in kwargs_default.items()}

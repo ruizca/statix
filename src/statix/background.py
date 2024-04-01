@@ -169,7 +169,7 @@ class BkgImage(BkgArray):
 
 class BkgCube(BkgArray):
     def __init__(
-        self, cube, mask=None, sigma_level=3, radius_factor=1.0, convolve=False, inpaint=False
+        self, cube, mask=None, sigma_level=3, radius_factor=1.0, convolve=False, inpaint=False, **kwargs
     ):
         self.data = cube.data
         # self.mask = self._set_exposure_mask(mask)
@@ -186,7 +186,7 @@ class BkgCube(BkgArray):
             logger.warn("The whole image is background!")
 
         if convolve:
-            self.data = self._convolve()
+            self.data = self._convolve(**kwargs)
 
     def _set_exposure_mask(self, mask):
         if not mask:

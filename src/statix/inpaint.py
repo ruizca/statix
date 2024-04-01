@@ -18,12 +18,12 @@ logger = logging.getLogger(__name__)
 rng = np.random.default_rng()
 
 
-def image_fill_ccd_gaps(image, mask2d, method="conv", kernel=None):
+def image_fill_ccd_gaps(image, mask2d, method="conv", kernel=None, **kwargs):
     kernel = _set_kernel(kernel)
     image_nans = image.copy()
     image_nans[mask2d < 1] = np.nan
 
-    image_reconstructed = _reconstruct_frame(image_nans, kernel, method)
+    image_reconstructed = _reconstruct_frame(image_nans, kernel, method, **kwargs)
 
     image_inpaint = image.copy()
     image_inpaint[mask2d < 1] = image_reconstructed[mask2d < 1]
@@ -31,7 +31,7 @@ def image_fill_ccd_gaps(image, mask2d, method="conv", kernel=None):
     return image_inpaint
 
 
-def cube_fill_ccd_gaps(cube, mask2d, method="conv", kernel=None):
+def cube_fill_ccd_gaps(cube, mask2d, method="conv", kernel=None, **kwargs):
     kernel = _set_kernel(kernel)
     cube_nans = _masked_pixels_to_nan(cube, mask2d)
     cube_inpaint = np.zeros(cube.shape, dtype=float)
@@ -44,7 +44,7 @@ def cube_fill_ccd_gaps(cube, mask2d, method="conv", kernel=None):
             continue
 
         frame_reconstructed = _reconstruct_frame(
-            cube_nans[idx_frame, :, :], kernel, method
+            cube_nans[idx_frame, :, :], kernel, method, **kwargs
         )
         cube_inpaint[idx_frame, mask2d < 1] = frame_reconstructed[mask2d < 1]
 
@@ -70,15 +70,15 @@ def _masked_pixels_to_nan(cube, mask):
     return cube_nans
 
 
-def _reconstruct_frame(frame, kernel, method):
+def _reconstruct_frame(frame, kernel, method, **kwargs):
     if method == "nanmean":
-        frame_reconstructed = _nanmean_filter(frame, kernel)
+        frame_reconstructed = _nanmean_filter(frame, kernel, **kwargs)
 
     elif method == "conv":
-        frame_reconstructed = _astropy_convolution(frame, kernel)
+        frame_reconstructed = _astropy_convolution(frame, kernel, **kwargs)
 
     elif method == "mca":
-        frame_reconstructed = _mca(frame, kernel)
+        frame_reconstructed = _mca(frame, kernel, **kwargs)
 
     else:
         raise ValueError(f"Unknown method: {method}")
@@ -108,19 +108,30 @@ def _astropy_convolution(frame, kernel):
     return frame_reconstructed
 
 
-def _mca(frame, kernel):
+def _mca(
+        frame, 
+        kernel,
+        gamma=0.5,
+        wavelet="db8",
+        level=3,
+        nblocks=64,
+        linear=False,
+        nonegative=False,
+        **kwargs,
+        ):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")            
         
         return mca.inpaint(
             frame,
             kernel,
-            gamma=0.5,
-            wavelet="db8",
-            level=3,
-            nblocks=64,
-            linear=False,
-            nonegative=False,
+            gamma,
+            wavelet,
+            level,
+            nblocks,
+            linear,
+            nonegative,
+            **kwargs,
         )
 
 

@@ -13,7 +13,7 @@ X-ray flares that may be hidden in the background once the data cube is
 collapsed in time to produce 2-dimensional images. Although the algorithm 
 is motivated by transient source searches, it also provides a competitive tool 
 for the detection of the general, typically less variable, X-ray source
-population present in X-ray observations. See Ruiz et al. 2023 (in preparation)
+population present in X-ray observations. See [Ruiz et al. 2024](https://doi.org/10.1093/mnras/stad3339)
 for a detailed explanation of the algorithm.
 
 STATiX is distributed as a Python package. The current implementation 
