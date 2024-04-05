@@ -386,8 +386,10 @@ def event_list_from_odf(odf_path, pps_path, detector="PN"):
 
         if detector == "PN":
             pxsas.run("epproc")
+        elif detector == "MOS":
+            pxsas.run("emproc")
         else:
-            raise NotImplementedError
+            raise ValueError(f"Unknown detector: {detector}")
 
     return _find_event_lists(pps_path, detector)
 
@@ -409,10 +411,10 @@ def _find_event_lists(pps_path, detector):
     return evl
 
 
-def filter_event_list(evl_path, pps_path):
+def filter_event_list(evl_path, pps_path, **kwargs):
     with working_directory(pps_path):
-        pxsas.run("espfilt", eventset=evl_path.as_posix())  ## SAS 19
-        # pxsas.run("espfilt", eventfile=evl_path.as_posix(), method="ratio", keepinterfiles="yes")  ## SAS 20
+        # pxsas.run("espfilt", eventset=evl_path.as_posix())  ## SAS 19
+        pxsas.run("espfilt", eventfile=evl_path.as_posix(), **kwargs)  ## SAS 20
 
 
 def _set_eboxl_list(evl_path):
