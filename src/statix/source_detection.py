@@ -396,7 +396,7 @@ def time_binning(srclist, sigma_level=3, edges=None):
     srclist["SRC_COUNTS"] = -1.0
     srclist["BKG_COUNTS"] = -1.0
     srclist["DET_ML"] = -1.0
-    srclist["OPTFRAMES"] = -1
+    # srclist["OPTFRAMES"] = -1
     
     lc = srclist["LC"].data
     lc_bb = []
@@ -408,7 +408,7 @@ def time_binning(srclist, sigma_level=3, edges=None):
         srclist["SRC_COUNTS"][src_num] = src
         srclist["BKG_COUNTS"][src_num] = bkg
         srclist["DET_ML"][src_num] = logp
-        srclist["OPTFRAMES"][src_num] = f
+        # srclist["OPTFRAMES"][src_num] = f
 
         lc_bb.append(_add_time_bb_edges(lc_bb_src, edges))
         if lc_bb_src.shape[0] > lc_bb_max_length:

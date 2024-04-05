@@ -104,6 +104,7 @@ def plot_lightcurve(ax, lc, lc_bb, animated=False):
     for row in lc_bb:
         idx.append(idx_start + row[2] / 2 - 0.5)
         idx_start += row[2]
+    idx = np.array(idx)
 
     im = ax.errorbar(
         idx, 
@@ -119,6 +120,21 @@ def plot_lightcurve(ax, lc, lc_bb, animated=False):
         ms=8,
         animated=animated,
     )
+    mask_not_significant = lc_bb[:, 5] < 1
+    im = ax.errorbar(
+        idx[mask_not_significant], 
+        lc_bb[mask_not_significant, 3] / lc_bb[mask_not_significant, 2], 
+        xerr=lc_bb[mask_not_significant, 2]/2, 
+        yerr=np.sqrt(lc_bb[mask_not_significant, 3]) / lc_bb[mask_not_significant, 2],
+        color="r",
+        lw=0,
+        elinewidth=2.5,
+        capsize=5,
+        capthick=2.5,
+        marker="o",
+        ms=8,
+        animated=animated,
+    )    
     im = ax.errorbar(
         idx, 
         lc_bb[:, 4] / lc_bb[:, 2], 

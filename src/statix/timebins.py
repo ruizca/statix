@@ -22,7 +22,7 @@ def _optimal_binning(lc, threshold, p0=0.1):
     z = np.arange(nz)
 
     bb_zedges = bayesian_blocks(z, lc[:, 0] + 1, fitness="events", p0=p0)
-    lc_bb = np.zeros((len(bb_zedges) - 1, 3))
+    lc_bb = np.zeros((len(bb_zedges) - 1, 4))
 
     for i, tmin, tmax in zip(count(), bb_zedges[:-1], bb_zedges[1:]):
         mask = np.logical_and(z >= tmin, z <= tmax)
@@ -31,6 +31,7 @@ def _optimal_binning(lc, threshold, p0=0.1):
         lc_bb[i, 2] = lc[mask, 1].sum()
 
     significant_bins = poisson_probability(lc_bb[:, 1], lc_bb[:, 2]) < threshold
+    lc_bb[significant_bins, 3] = 1.0
 
     zedges_lo = bb_zedges[:-1][significant_bins]
     zedges_hi = bb_zedges[1:][significant_bins]
@@ -47,6 +48,6 @@ def _extract_counts(zedges_lo, zedges_hi, lc):
             if zframe >= lo and zframe <= hi:
                 src_counts += lc[zframe, 0]
                 bkg_counts += lc[zframe, 1]
-                bitflag += 2**zframe
+                # bitflag += 2**zframe
 
     return src_counts, bkg_counts, bitflag
