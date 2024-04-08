@@ -456,10 +456,10 @@ def calc_fluxes(srclist, expmap, ecf=7.3866, eef=70, zsize=1):
     eef = eef / 100
 
     if zsize > 1:
-        fraction_good_frames = _get_good_frames(srclist["OPTFRAMES"], zsize)
+        fraction_good_frames = _get_good_frames(srclist["LC_BB"], zsize)
     else:
         fraction_good_frames = 1
-    
+
     exptime = _get_exposure_time(srclist, expmap) * fraction_good_frames
 
     with warnings.catch_warnings():
@@ -474,8 +474,13 @@ def calc_fluxes(srclist, expmap, ecf=7.3866, eef=70, zsize=1):
     return srclist
 
 
-def _get_good_frames(optframes, zsize):
-    return np.array([np.binary_repr(f).count("1") for f in optframes]) / zsize
+def _get_good_frames(lc_bb, zsize):
+    # lc_bb contains nans because the binned light-curve for each source must have
+    # the same length for all sources in order to be stored as an array column in a fits file
+    number_of_frames_in_block = lc_bb.data[:, :, 2]
+    block_is_significant = lc_bb.data[:, :, -1]  # Zero if no significant
+    
+    return np.nansum(number_of_frames_in_block * block_is_significant, axis=1) / zsize
 
 
 def _get_exposure_time(srclist, expmap):
@@ -501,7 +506,7 @@ def final_catalog(srclist, photomode, dim=3):
         keep_columns += ["PSF_a", "PSF_b", "PSF_pa"]
 
     if dim == 3:
-        keep_columns += ["LC", "LC_BB", "OPTFRAMES"]
+        keep_columns += ["LC", "LC_BB"]
 
     srclist.keep_columns(keep_columns)
 
