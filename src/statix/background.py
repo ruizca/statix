@@ -41,13 +41,6 @@ class BkgArray:
             verbose=False,
         )
 
-    # def _find_candidates(self, image_denoised):
-    #     threshold = np.percentile(image_denoised.data, 95.4)
-    #     segm = detect_sources(image_denoised.data, threshold, npixels=5)
-    #     cat = source_properties(image_denoised.data, segm)
-
-    #     return cat.to_table()
-
     def _find_candidates(self, image_denoised):
         cat = peak_detection(image_denoised, self.mask, sigma=6)
         cat["xcentroid"] = cat["x_peak"].astype(float)
@@ -95,7 +88,7 @@ class BkgArray:
 
 class BkgImage(BkgArray):
     def __init__(
-        self, image, mask=None, sigma_level=3, radius_factor=1.0, convolve=False, inpaint=False
+        self, image, mask=None, sigma_level=3, radius_factor=1.0, convolve=False, **kwargs
     ):
         self.data = image.data
         # self.mask = self._set_exposure_mask(mask)
@@ -165,6 +158,9 @@ class BkgImage(BkgArray):
     def apply_mask(self, data):
         data[self.mask.data < 1] = 0
         return data
+
+    def average_counts_per_pixel(self):
+        return np.average(self.data, weights=self.mask.data)
 
 
 class BkgCube(BkgArray):

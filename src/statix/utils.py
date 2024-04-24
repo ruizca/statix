@@ -64,7 +64,8 @@ def all_logging_disabled(highest_level=logging.CRITICAL):
     """
     A context manager that will prevent any logging messages
     triggered during the body from being processed.
-    :param highest_level: the maximum logging level in use.
+    
+    highest_level : the maximum logging level in use.
       This would only need to be changed if a custom level greater than CRITICAL
       is defined.
     """

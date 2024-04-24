@@ -5,6 +5,7 @@ Created on Tue Jul  6 10:55:26 2021
 @author: ruizca
 """
 import logging
+import math
 from functools import cached_property
 from pathlib import Path
 
@@ -125,11 +126,12 @@ class ExposureFiles:
 
 
 class ExposureData:
-    def __init__(self, files, camera, eband, **kwargs):
+    def __init__(self, files, camera, eband, zsize="auto", **kwargs):
         self.files = files
         self.camera = camera
         self.eband = eband
         self.bkg_params = self._parse_bkg_params(**kwargs)
+        self.zsize = zsize
 
         self._detector_frame = None
         self._image = None
@@ -165,6 +167,11 @@ class ExposureData:
 
     def _set_cube(self):
         if not self.files.cube.exists():
+            if self.zsize == "auto":
+                zsize = self._calc_optimal_zsize()
+            else:
+                zsize = self.zsize
+                
             # First we try creating the cube taking into account the GTI 
             # included in the event list, if it fails because they are not
             # included, we just create the cube without considering the GTI
@@ -172,6 +179,7 @@ class ExposureData:
                 "detector": self.camera, 
                 "emin": self.eband.min, 
                 "emax": self.eband.max,
+                "zsize": zsize,
             }
             try:
                 # We call the image here because the image file has to
@@ -181,9 +189,21 @@ class ExposureData:
             
             except KeyError:
                 logger.warn("No GTI extensions in the event file!")
-                Cube.make(self.files.evt, gti_path=False, **kwargs)
+                Cube.make(self.files.evt, use_gti=False, **kwargs)
 
         return Cube(self.files.cube)
+
+    def _calc_optimal_zsize(self, bkg_cr_limit=0.02):
+        # The Variance Stabilization Transform fails if the number of 
+        # counts per pixel is below a certain threshold (~0.01 c/p).
+        # Here we use the estimated background map to calculate the 
+        # average counts per pixel in the image. Then we can find wich 
+        # is the maximum number of frames we can use so the average
+        # counts per pixel per frames is above the selected limit.
+        zsize = int(math.ceil(self.bkgimage.average_counts_per_pixel() / bkg_cr_limit))
+        logger.info("Optimal size of the cube (for %.2f c/p limit): %d frames", bkg_cr_limit, zsize)
+        
+        return zsize
 
     @cached_property
     def cube_inpaint(self):

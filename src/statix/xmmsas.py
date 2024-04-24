@@ -49,12 +49,12 @@ def make_image(evl_path, detector="PN", emin=500, emax=2000, flag=0):
 
 
 def make_cube(
-    evl_path, detector="PN", emin=500, emax=2000, flag=0, zsize=32, gti_path=None
+    evl_path, detector="PN", emin=500, emax=2000, flag=0, zsize=32, use_gti=True
 ):
     cubeset = _set_cubeset(evl_path)
     cube = _set_cube(evl_path, zsize)
 
-    time_edges = _set_time_edges(evl_path, zsize, gti_path)
+    time_edges = _set_time_edges(evl_path, zsize, use_gti)
     expression_image = _set_image_expression(detector, emin, emax, flag)
 
     for zidx in track(range(zsize), description="Extracting 3D cube..."):
@@ -215,12 +215,13 @@ def _pad_zframe(shape, frame):
     return frame_padded
 
 
-def _set_time_edges(evl_path, zsize, gti_path=None, hdu=1):
-    if gti_path is False:
+def _set_time_edges(evl_path, zsize, use_gti=True):
+    if use_gti:
+        logger.info("Using GTIs defined in the event list.")
+        edges = _time_edges_gti(evl_path, zsize)
+    else:
         logger.info("Not using GTI information.")
         edges = _time_edges_nogti(evl_path, zsize)
-    else:
-        edges = _time_edges_gti(evl_path, gti_path, hdu, zsize)
 
     return edges
 
@@ -233,14 +234,41 @@ def _time_edges_nogti(evl_path, zsize):
     return np.linspace(tmin, tmax, num=zsize + 1)
 
 
-def _time_edges_gti(evl_path, gti_path, hdu, zsize):
-    if gti_path is not None:
-        logger.info("Using GTIs defined in external file.")
-        gti = _read_external_gti(gti_path, hdu)
-    else:
-        logger.info("Using GTIs defined in the event list.")
-        gti = _read_internal_gti(evl_path)
+def _time_edges_gti(evl_path, zsize):
+    with all_logging_disabled():
+        gti, TSTART = _read_and_merge_gti(evl_path)
+    
+    edges = _calc_time_edges(gti, zsize)
 
+    return edges + TSTART
+
+
+def _read_and_merge_gti(evl_path):
+    with fits.open(evl_path) as hdul:
+        gti_list_str = " ".join(
+            f"{evl_path}:{hdu.name}" 
+            for hdu in hdul 
+            if hdu.name.find("GTI") == 0
+        )
+
+    with NamedTemporaryFile() as gti_file:
+        pxsas.run(
+            "gtimerge",
+            tables=gti_list_str,
+            withgtitable=True,
+            gtitable=gti_file.name,
+            mergemode="and"
+        )
+        gti = Table.read(gti_file.name)
+
+    T0 = gti["START"][0]
+    gti["START"] = gti["START"] - T0
+    gti["STOP"] = gti["STOP"] - T0
+
+    return gti, T0
+
+
+def _calc_time_edges(gti, zsize):
     duration = np.sum(gti["STOP"] - gti["START"])
     dt_frame_target = duration / zsize
 
@@ -249,9 +277,18 @@ def _time_edges_gti(evl_path, gti_path, hdu, zsize):
     i = 0
     t0, t1 = gti[i]["START"], gti[i]["STOP"]
     dt_frame_remaining = dt_frame_target
-
     edges = [t0]
-    while duration > 0:
+
+    # In principle we could set up the condition to duration > 0,
+    # but due to floating point arithmetics this fails if zsize is
+    # not a power of 2. For other values of zsize there is a rounding
+    # error in the dt_frame_target value, so the last interval is slightly 
+    # bigger than dt_frame_target and the loop continues for one more
+    # iteration than needed, raising an exception because it tries to 
+    # acces a row in the gti table larger than the number that actually exists.
+    # By changing the condition to duration > dt_frame_target, this problem
+    # is solved (I just need to add "by hand" the last time edge).
+    while duration > dt_frame_target:
         # GIVEN a time interval [t0, t1] and
         # a desired duration dt_frame_target
         # estimate how much frwrd time can one move
@@ -265,7 +302,7 @@ def _time_edges_gti(evl_path, gti_path, hdu, zsize):
         # achieve the target deltat.
         # It also returns the elapsed time for the
         # frwrd move in time.
-        t0, dt_frame_remaining, t_elapsed = _fwrd(t0, t1, dt_frame_remaining)
+        t0, dt_frame_remaining, t_elapsed = _frwrd(t0, t1, dt_frame_remaining)
         duration -= t_elapsed
 
         if t0 == -1:
@@ -280,49 +317,30 @@ def _time_edges_gti(evl_path, gti_path, hdu, zsize):
             dt_frame_remaining = dt_frame_target
             edges.append(t0)
 
+    edges.append(t1)
+
     return np.array(edges)
 
 
-def _read_external_gti(gti_path, hdu):
-    return Table.read(gti_path, hdu=hdu)
+def _frwrd(t0, t1, dt_target):
+    # Given an interval gti with start time 't0' and end time 't1', 
+    # and a desired duration 'dt_target', estimate the next time stamp, 
+    # 't_edge', so that 't_edge = t0 + deltat'.
 
+    # If the interval duration 'dt' is larger than 'dt_target' then 
+    # move forward in time by 't0 + dt_target' and return the new
+    # time stap 't = t0 + dt_target'. In this case the elapsed time is 
+    # 'dt_target'. The remaining time required to achieve 'dt_target' 
+    # is then 'dt_remaining = 0'. It represents the left over time to 
+    # complete the desired target duration
 
-def _read_internal_gti(evl_path):
-    gti_index = []
-    with fits.open(evl_path) as hdul:
-        for i, h in enumerate(hdul):
-            if h.name.find("GTI") == 0:
-                gti_index = i
-                break
+    # If the interval duration 'dt' is smaller than 'dt_target' then 
+    # move forward in time to t1. The new time stamp is then -1. In 
+    # this case the  elapsed time is 't_elapsed = dt' (i.e. the full 
+    # interval). In this case the desired duration has not been 
+    # completed and remains a left over time duration 
+    # 'dt_remaining = dt_target - dt'
 
-        gti = Table(hdul[gti_index].data)
-
-    gti["STOP"] = gti["STOP"] - gti["START"][0] << u.s
-    gti["START"] = gti["START"] - gti["START"][0] << u.s
-
-    return gti
-
-
-def _fwrd(t0, t1, dt_target):
-    """
-    Given an interval gti with start time 't0' and end time 't1', 
-    and a desired duration 'dt_target', estimate the next time stamp, 
-    't_edge', so that 't_edge = t0 + deltat'.
-
-    If the interval duration 'dt' is larger than 'dt_target' then 
-    move forward in time by 't0 + dt_target' and return the new
-    time stap 't = t0 + dt_target'. In this case the elapsed time is 
-    'dt_target'. The remaining time required to achieve 'dt_target' 
-    is then 'dt_remaining = 0'. It represents the left over time to 
-    complete the desired target duration
-
-    If the interval duration 'dt' is smaller than 'dt_target' then 
-    move forward in time to t1. The new time stamp is then -1. In 
-    this case the  elapsed time is 't_elapsed = dt' (i.e. the full 
-    interval). In this case the desired duration has not been 
-    completed and remains a left over time duration 
-    'dt_remaining = dt_target - dt'
-    """
     dt = t1 - t0
 
     if dt < dt_target:
