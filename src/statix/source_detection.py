@@ -6,7 +6,6 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.stats import sigma_clipped_stats
 from astropy.table import Table
-from astropy.utils.exceptions import AstropyWarning
 from photutils import (
     deblend_sources,
     detect_sources,
@@ -101,7 +100,7 @@ def msvst2d(
     nsrcs = len(srclist)
 
     if not nsrcs:
-        logger.warn(f"No source candidates detected.")
+        logger.warn("No source candidates detected.")
 
     elif nsrcs > nsrcs_limit:
         logger.warn(f"{nsrcs} source candidates found. Skipping count extraction.")
@@ -207,7 +206,7 @@ def msvst2d1d(
     nsrcs = len(srclist)
 
     if not nsrcs:
-        logger.warn(f"No source candidates detected.")
+        logger.warn("No source candidates detected.")
 
     elif nsrcs > nsrcs_limit:
         logger.warn(f"{nsrcs} source candidates found. Skipping count extraction.")
@@ -539,9 +538,7 @@ def _load_emldetect_catalogue(exposure, likemin=10, **kwargs):
     parent, prefix, suffix = exposure.files.get_path_parts()
     srclist_path = parent.joinpath(f"{prefix}-summarylist_DETML{likemin}{suffix}")
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=AstropyWarning)
-        return Table.read(srclist_path)
+    return Table.read(srclist_path, unit_parse_strict="silent")
 
 
 def simput(exposure):
@@ -557,14 +554,11 @@ def _load_simput_catalogue(exposure):
     parent, prefix, _ = exposure.files.get_path_parts()
     srclist_path = parent.joinpath(f"{prefix}_sources.simput")
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=AstropyWarning)
+    try:
+        simputcat = Table.read(srclist_path, hdu=1, unit_parse_strict="silent")
 
-        try:
-            simputcat = Table.read(srclist_path, hdu=1)
-
-        except FileNotFoundError:
-            srclist_path = parent.joinpath(f"{prefix}_catalogue.simput")
-            simputcat = Table.read(srclist_path, hdu=1)
+    except FileNotFoundError:
+        srclist_path = parent.joinpath(f"{prefix}_catalogue.simput")
+        simputcat = Table.read(srclist_path, hdu=1, unit_parse_strict="silent")
 
     return simputcat

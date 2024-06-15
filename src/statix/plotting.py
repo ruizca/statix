@@ -4,6 +4,7 @@ Convinience functions for plotting XMM data
 @author: A.Ruiz
 """
 import numpy as np
+from astropy.nddata import Cutout2D
 from astropy.visualization import simple_norm
 from matplotlib import pyplot as plt
 from matplotlib.text import Text
@@ -95,21 +96,36 @@ def plot_image(
         axis.indicate_inset_zoom(axins, edgecolor="r", alpha=1)
 
 
-def plot_lightcurve(ax, lc, lc_bb, animated=False):
-    im = ax.plot(lc[:, 0], color="k", lw=1, animated=animated)
-    im = ax.plot(lc[:, 1], color="grey", lw=1, animated=animated)
+def plot_cutout(ax, image, xsrc, ysrc, size=20, label=None, scale="linear"):
+    cutout = Cutout2D(image.data, (xsrc, ysrc), wcs=image.wcs, size=size)
 
-    idx = []
-    idx_start = 0
-    for row in lc_bb:
-        idx.append(idx_start + row[2] / 2 - 0.5)
-        idx_start += row[2]
-    idx = np.array(idx)
+    norm_cutout = simple_norm(cutout.data, scale)#, max_percent=99)
+    ax.imshow(cutout.data, origin="lower", cmap="hot", norm=norm_cutout)
+    ax.set_axis_off()
+    ax.autoscale(False, axis="both")
 
+    if label is not None:
+        ax.text(0.02, 0.9, label, transform=ax.transAxes, color="w", fontsize="xx-large", fontweight="bold")
+
+    return cutout.wcs
+
+
+def plot_lightcurve(ax, lc, time_edges, lc_bb, animated=False):
+    lc_mid_point = (time_edges[:-1] + time_edges[1:]) / 2 - time_edges[0]
+    im = ax.plot(lc_mid_point, lc[:, 0], color="k", lw=1, animated=animated)
+    im = ax.plot(lc_mid_point, lc[:, 1], color="grey", lw=1, animated=animated)
+
+    for t in time_edges:
+        ax.axvline(t - time_edges[0], ls=":", color="k")
+
+
+    lc_bb_mid_point = (lc_bb[:, 0] + lc_bb[:, 1]) / 2 - lc_bb[0, 0]
+    xerr = (lc_bb[:, 1] - lc_bb[:, 0]) / 2
+    
     im = ax.errorbar(
-        idx, 
+        lc_bb_mid_point, 
         lc_bb[:, 3] / lc_bb[:, 2], 
-        xerr=lc_bb[:, 2]/2, 
+        xerr=xerr, 
         yerr=np.sqrt(lc_bb[:, 3]) / lc_bb[:, 2],
         color="k",
         lw=0,
@@ -122,9 +138,9 @@ def plot_lightcurve(ax, lc, lc_bb, animated=False):
     )
     mask_not_significant = lc_bb[:, 5] < 1
     im = ax.errorbar(
-        idx[mask_not_significant], 
+        lc_bb_mid_point[mask_not_significant], 
         lc_bb[mask_not_significant, 3] / lc_bb[mask_not_significant, 2], 
-        xerr=lc_bb[mask_not_significant, 2]/2, 
+        xerr=xerr[mask_not_significant], 
         yerr=np.sqrt(lc_bb[mask_not_significant, 3]) / lc_bb[mask_not_significant, 2],
         color="r",
         lw=0,
@@ -136,9 +152,9 @@ def plot_lightcurve(ax, lc, lc_bb, animated=False):
         animated=animated,
     )    
     im = ax.errorbar(
-        idx, 
+        lc_bb_mid_point, 
         lc_bb[:, 4] / lc_bb[:, 2], 
-        xerr=lc_bb[:, 2]/2, 
+        xerr=xerr, 
         yerr=np.sqrt(lc_bb[:, 4]) / lc_bb[:, 2],
         color="darkgrey",
         lw=0,
@@ -150,10 +166,10 @@ def plot_lightcurve(ax, lc, lc_bb, animated=False):
         animated=animated,
     )
 
-    ax.set_xlim(-0.8, 32.3)
-    ax.set_ylim(0)
+    # ax.set_xlim(-10,  lc_bb[-1, 1] - lc_bb[0, 0] + 10)
+    # ax.set_ylim(-0.5)
 
-    ax.set_xlabel("frame index")
-    ax.set_ylabel("counts")
+    ax.set_xlabel(f"time +{lc_bb[0, 0]:.2f} / s")
+    ax.set_ylabel("counts per frame")
     
     return im

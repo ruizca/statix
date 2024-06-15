@@ -14,7 +14,7 @@ event_list_path = data_path / "pnevt.fits"
 att_path = data_path / "att.fits"
 
 make_ccf(data_path)
-xmmexp = Exposure(event_list_path, att_path)
+xmmexp = Exposure(event_list_path, att_path, zsize=32)
 
 # Run SAS emldetect algorithm
 # This also creates all products needed 

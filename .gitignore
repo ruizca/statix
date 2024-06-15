@@ -106,3 +106,10 @@ venv.bak/
 .vscode/
 test/
 src/statix/bayesian_blocks.py
+docs/data/pnevt-imgsmap.fits
+docs/data/pnevt-imgsen.fits
+docs/data/pnevt-imgmask.fits
+docs/data/pnevt-imgbkg.fits
+docs/data/pnevt-emllist_DETML6.fits
+docs/data/pnevt-eboxlist_m.fits
+docs/data/pnevt-eboxlist_l.fits
