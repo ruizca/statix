@@ -12,6 +12,7 @@ from tempfile import NamedTemporaryFile
 import numpy as np
 from astropy import units as u
 from astropy.io import fits
+from astropy.table import Table
 from astropy.wcs import WCS, FITSFixedWarning
 from mocpy import MOC
 from msvst import MSVST2D, MSVST2D1D
@@ -31,30 +32,45 @@ except ImportError as e:
 class ImageBase:
     def __init__(self, filename=None, data=None, wcs=None):
         if filename:
-            self.wcs, self.data = self._read(filename)
+            self.data, self.wcs, _ = self._read(filename)
         else:
-            self.wcs = wcs
             self.data = data
+            self.wcs = wcs
 
     def __str__(self):
         return f"{'x'.join(str(s) for s in self.shape)} {self.__class__.__name__}"
 
     def _read(self, image_file):
         with fits.open(image_file) as hdu:
-            wcs = self._set_wcs(hdu[0].header)
+            wcs = self._set_wcs(hdu)
             data = hdu[0].data
+            gti = None
 
-        return wcs, data
+            if data.ndim > 2:
+                gti = self._read_gtis(hdu)
+
+        return data, wcs, gti
+
+    @staticmethod
+    def _read_gtis(hdu):
+        try:
+            gti = Table.read(hdu["GTI"])
+        
+        except KeyError:
+            logger.warning("No GTI extension in file.")
+            gti = None
+    
+        return gti
 
     @property
     def shape(self):
         return self.data.shape
 
     @staticmethod
-    def _set_wcs(header):
+    def _set_wcs(hdulist):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=FITSFixedWarning)
-            wcs = WCS(header)
+            wcs = WCS(hdulist[0].header, hdulist)
 
         return wcs
 
@@ -96,49 +112,69 @@ class ExpMap(ImageBase):
         xmmsas.make_expmap(event_list_file, attitude_file, **kwargs)
 
 
-class Cube:
-    def __init__(self, filename=None, data=None, time_edges=None):
+class Cube(ImageBase):
+    def __init__(self, filename=None, data=None, wcs=None, gti=None):
         if filename:
-            self.data, self.time_edges = self._read(filename, time_edges)
+            self.data, self.wcs, self.gti = self._read(filename)
         else:
             self.data = data
-            self.time_edges = time_edges
+            self.wcs = wcs
+            self.gti = gti
 
     def __str__(self):
         return f"{'x'.join(str(s) for s in self.shape)} {self.__class__.__name__}"
 
-    def _read(self, cube_file, edges):
-        with fits.open(cube_file) as hdu:
-            # wcs = WCS(hdu[0].header)
-            data = hdu[0].data
-
-            try:
-                edges = hdu["TIMEBINS"].data["TIME_EDGES"]
-            except Exception:
-                logger.warn("No TIMEBINS extension in cube file. Using provided time edges.")
-
-        return data, edges
+    @property
+    def time_edges(self):
+        frame_idx = np.arange(self.shape[0] + 1)
+        return self.wcs.temporal.pixel_to_world_values(frame_idx)
 
     @property
-    def shape(self):
-        return self.data.shape
+    def time_midpoints(self):
+        tidx = np.arange(self.shape[0]) + 0.5
+        return self.wcs.temporal.pixel_to_world_values(tidx)
 
     @property
     def time_integrated(self):
-        return Image(data=self._project_axis(axis=0))
+        return Image(data=self._project_axis(axis=0), wcs=self.wcs.celestial)
 
     def _project_axis(self, axis):
         return self.data.sum(axis=axis)
 
-    def save_as_fits(self, filename):
-        save_fits(self.data, filename)
+    def save_as_fits(self, filename, only_data=False, overwrite=True):
+        if only_data:
+            save_fits(self.data, filename)
+        else:
+            primary_hdu = fits.PrimaryHDU(self.data, header=self.wcs.to_header())
+            wcs_table = self._wcs_table()
+            hdu_list = [primary_hdu, wcs_table]
+            
+            if self.gti is not None:
+                gti_hdu = fits.BinTableHDU(self.gti)
+                gti_hdu.header["EXTNAME"] = "GTI"
+                hdu_list.append(gti_hdu)
+
+            hdul = fits.HDUList(hdu_list)
+            hdul.writeto(filename, overwrite=overwrite)
+            
+    def _wcs_table(self):
+        idx = np.arange(len(self.time_edges), dtype=np.float32)
+
+        wcs_table = Table()
+        wcs_table["TimeIndex"] = [idx]
+        wcs_table["TimeCoord"] = [self.time_edges]
+        wcs_table["TimeCoord"].unit = self.wcs.wcs.cunit[-1]
+        wcs_table.meta["EXTNAME"] = "WCS-table"
+
+        return fits.BinTableHDU(wcs_table)
+
 
     def fill_gaps(self, mask, method="conv", kernel=None, filename=None, **kwargs):
         """
         Returns a new Cube object with the gaps defined in mask filled with counts.
         """
         cube_filled_data = inpaint.cube_fill_ccd_gaps(self.data, mask, method, kernel, **kwargs)
-        cube_filled = Cube(data=cube_filled_data, time_edges=self.time_edges)
+        cube_filled = Cube(data=cube_filled_data, wcs=self.wcs, gti=self.gti)
 
         if filename:
             cube_filled.save_as_fits(filename)
@@ -147,11 +183,14 @@ class Cube:
 
     def denoise(self, output_file=None, **kwargs):
         with NamedTemporaryFile(suffix=".fits") as temp:
-            self.save_as_fits(temp.name)
+            self.save_as_fits(temp.name, only_data=True)
 
             temp_path = Path(temp.name)
             msvst_file = MSVST2D1D.denoise(temp_path, output_file, **kwargs)
-            cube_denoised = Cube(msvst_file)
+            
+            cube_denoised = Cube(msvst_file)#, wcs=self.wcs)
+            cube_denoised.wcs = self.wcs
+            cube_denoised.gti = self.gti
 
         if not output_file:
             msvst_file.unlink()
@@ -192,7 +231,7 @@ class Mask:
         for idx_frame in range(cube.shape[0]):
             masked_cube[idx_frame, :, :] = self.data * cube.data[idx_frame, :, :]
 
-        return Cube(data=masked_cube)
+        return Cube(data=masked_cube, wcs=cube.wcs)
 
     @property
     def shape(self):
@@ -246,6 +285,6 @@ class Mask:
         return mask
 
 
-def save_fits(data, filename):
-    hdu = fits.PrimaryHDU(data)
+def save_fits(data, filename, header=None):
+    hdu = fits.PrimaryHDU(data, header)
     hdu.writeto(filename, overwrite=True)

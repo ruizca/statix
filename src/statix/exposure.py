@@ -80,7 +80,7 @@ class Exposure:
         return self.data.bkgcube
 
     def detect_sources(self, method="msvst2d1d", **kwargs):
-        logger.info(f"Detecting sources using {method} algorithm...")
+        logger.info("Detecting sources using %s algorithm...", method)
 
         try:
             source_detection_algo = getattr(source_detection, method)
@@ -193,7 +193,7 @@ class ExposureData:
 
         return Cube(self.files.cube)
 
-    def _calc_optimal_zsize(self, bkg_cr_limit=0.02):
+    def _calc_optimal_zsize(self, bkg_cr_limit=0.02, zsize_max=64):
         # The Variance Stabilization Transform fails if the number of 
         # counts per pixel is below a certain threshold (~0.01 c/p).
         # Here we use the estimated background map to calculate the 
@@ -202,7 +202,11 @@ class ExposureData:
         # counts per pixel per frames is above the selected limit.
         zsize = int(math.ceil(self.bkgimage.average_counts_per_pixel() / bkg_cr_limit))
         logger.info("Optimal size of the cube (for %.2f c/p limit): %d frames", bkg_cr_limit, zsize)
-        
+
+        if zsize > zsize_max:
+            logger.warn("Estimated size larger than %d!. Using %d frames", zsize_max, zsize_max)
+            zsize = zsize_max
+
         return zsize
 
     @cached_property
@@ -214,8 +218,8 @@ class ExposureData:
 
     def _set_cube_inpaint(self, method):
         try:
-            cube = Cube(self.files.cube_inpaint, time_edges=self.cube.time_edges)
-            logger.info(f"Existing inpainted cube loaded!")
+            cube = Cube(self.files.cube_inpaint)
+            logger.info("Existing inpainted cube loaded!")
 
         except FileNotFoundError:
             logger.info(f"Filling cube gaps ({method})...")

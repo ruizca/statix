@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 import logging
 import os
+import warnings
 from datetime import datetime
 from tempfile import NamedTemporaryFile
 
 import numpy as np
 from astropy.io import fits
 from astropy.table import Table
+from astropy.wcs import WCS, FITSFixedWarning
 from rich.progress import track
 
 import pxsas
@@ -54,19 +56,20 @@ def make_cube(
     cubeset = _set_cubeset(evl_path)
     cube = _set_cube(evl_path, zsize)
 
-    time_edges = _set_time_edges(evl_path, zsize, use_gti)
+    time_edges, gti = _set_time_edges(evl_path, zsize, use_gti)
     expression_image = _set_image_expression(detector, emin, emax, flag)
 
     for zidx in track(range(zsize), description="Extracting 3D cube..."):
         expression_time = _set_time_expression(zidx, time_edges)
         expression = f"{expression_image} && {expression_time}"
 
-        zframe = _extract_zframe(evl_path, expression)
+        zframe, img_header = _extract_zframe(evl_path, expression)
         cube[zidx, :, :] = _pad_zframe(cube.shape, zframe)
 
-    _save_cube_to_fits(cube, time_edges, cubeset)
+    _save_cube_to_fits(cube, img_header, time_edges, gti, cubeset)
 
     return cubeset
+
 
 def make_expmap(
     evl_path,
@@ -196,12 +199,13 @@ def _extract_image(evl_path, imageset, expression):
     )
 
 
-def _extract_zframe(evl_path, expression):
+def _extract_zframe(evl_path, expression, return_header=False):
     with NamedTemporaryFile() as image_file:
         with all_logging_disabled(highest_level=logging.WARNING):
             _extract_image(evl_path, image_file.name, expression)
 
-        return fits.getdata(image_file.name)
+        with fits.open(image_file.name) as hdul:
+            return hdul[0].data, hdul[0].header
 
 
 def _pad_zframe(shape, frame):
@@ -218,20 +222,21 @@ def _pad_zframe(shape, frame):
 def _set_time_edges(evl_path, zsize, use_gti=True):
     if use_gti:
         logger.info("Using GTIs defined in the event list.")
-        edges = _time_edges_gti(evl_path, zsize)
+        edges, gti = _time_edges_gti(evl_path, zsize)
     else:
         logger.info("Not using GTI information.")
-        edges = _time_edges_nogti(evl_path, zsize)
+        edges, gti = _time_edges_nogti(evl_path, zsize)
 
-    return edges
+    return edges, gti
 
 
 def _time_edges_nogti(evl_path, zsize):
     header = fits.getheader(evl_path, 1)
     tmin = header["TSTART"]
     tmax = header["TSTOP"]
+    gti = None
 
-    return np.linspace(tmin, tmax, num=zsize + 1)
+    return np.linspace(tmin, tmax, num=zsize + 1), gti
 
 
 def _time_edges_gti(evl_path, zsize):
@@ -240,7 +245,11 @@ def _time_edges_gti(evl_path, zsize):
     
     edges = _calc_time_edges(gti, zsize)
 
-    return edges + TSTART
+    edges += TSTART
+    gti["START"] += TSTART
+    gti["STOP"] += TSTART
+
+    return edges, gti
 
 
 def _read_and_merge_gti(evl_path):
@@ -248,7 +257,7 @@ def _read_and_merge_gti(evl_path):
         gti_list_str = " ".join(
             f"{evl_path}:{hdu.name}" 
             for hdu in hdul 
-            if hdu.name.find("GTI") == 0
+            if hdu.name.find("GTI") >= 0
         )
 
     with NamedTemporaryFile() as gti_file:
@@ -286,9 +295,7 @@ def _calc_time_edges(gti, zsize):
     # bigger than dt_frame_target and the loop continues for one more
     # iteration than needed, raising an exception because it tries to 
     # acces a row in the gti table larger than the number that actually exists.
-    # By changing the condition to duration > dt_frame_target, this problem
-    # is solved (I just need to add "by hand" the last time edge).
-    while duration > dt_frame_target:
+    while not np.isclose(duration, 0):
         # GIVEN a time interval [t0, t1] and
         # a desired duration dt_frame_target
         # estimate how much frwrd time can one move
@@ -317,8 +324,6 @@ def _calc_time_edges(gti, zsize):
             dt_frame_remaining = dt_frame_target
             edges.append(t0)
 
-    edges.append(t1)
-
     return np.array(edges)
 
 
@@ -340,10 +345,15 @@ def _frwrd(t0, t1, dt_target):
     # interval). In this case the desired duration has not been 
     # completed and remains a left over time duration 
     # 'dt_remaining = dt_target - dt'
-
     dt = t1 - t0
 
-    if dt < dt_target:
+    # The "isclose" condition is to avoid an error when dt is very 
+    # close to zero. Since we are dealing with floating point arithmetics,
+    # the value of dt_target is not exactly equal to duration / zsize
+    # if zsize is not a power of 2. Hence, it can occur that dt is not
+    # exactly zero, but less than dt_target, but nevertheless the 
+    # "else" condition should happen.
+    if dt < dt_target and not np.isclose(dt, dt_target):
         t_edge, t_elapsed = -1, dt
         dt_remaining = dt_target - dt
     else:
@@ -360,15 +370,84 @@ def _set_time_expression(idx, edges):
     return f"(TIME >= {t0:.04f} && TIME < {t1:.04f})"
 
 
-def _save_cube_to_fits(data, time_edges, output_path):
-    primary_hdu = fits.PrimaryHDU(data)
+def _save_cube_to_fits(data, img_header, time_edges, gti, output_path):
+    cube_header, wcs_table = _set_time_wcs(img_header, time_edges)
 
-    c1 = fits.Column(name="TIME_EDGES", array=time_edges, format="D")
-    table_hdu = fits.BinTableHDU.from_columns([c1])
-    table_hdu.header["EXTNAME"] = "TIMEBINS"
+    primary_hdu = fits.PrimaryHDU(data, header=cube_header)
+    hdu_list = [primary_hdu, wcs_table]
+    
+    if gti is not None:
+        gti_hdu = fits.BinTableHDU(gti)
+        gti_hdu.header["EXTNAME"] = "GTI"
+        hdu_list.append(gti_hdu)
 
-    hdul = fits.HDUList([primary_hdu, table_hdu])
+    hdul = fits.HDUList(hdu_list)
     hdul.writeto(output_path, overwrite=True)
+
+
+def _set_time_wcs(img_header, time_edges):
+    wcs_table = _set_wcs_table(time_edges)
+    
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=FITSFixedWarning)
+        wcs = WCS(img_header)
+
+    time_wcs_dict = {
+        "CTYPE1": wcs.wcs.ctype[0],
+        "CUNIT1": str(wcs.wcs.cunit[0]),
+        "CDELT1": wcs.wcs.cdelt[0],
+        "CRPIX1": wcs.wcs.crpix[0],
+        "CRVAL1": wcs.wcs.crval[0],
+        "NAXIS1": wcs.array_shape[0],
+    
+        "CTYPE2": wcs.wcs.ctype[1],
+        "CUNIT2": str(wcs.wcs.cunit[1]),
+        "CDELT2": wcs.wcs.cdelt[1],
+        "CRPIX2": wcs.wcs.crpix[1],
+        "CRVAL2": wcs.wcs.crval[1],
+        "NAXIS2": wcs.array_shape[1],
+        
+        "CTYPE3": "TIME-TAB",
+        "CUNIT3": "s",
+        "CDELT3": 1.0,
+        "CRPIX3": 1.0,
+        "CRVAL3": 0.0,
+        "PS3_0": "WCS-table",
+        "PS3_1": "TimeCoord",
+        "PS3_2": "TimeIndex",
+        "NAXIS3": len(time_edges) - 1,
+
+    }
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=FITSFixedWarning)
+        time_wcs = WCS(time_wcs_dict, fits.HDUList(wcs_table))
+        cube_header = time_wcs.to_header()
+
+    time_keywords = {
+        "TIMESYS": "TT",
+        "TIMEUNIT": "s",
+        "MJDREF": 50814.0,         
+        # "TIMEZERO": 0, 
+        # "TIMEREF": "LOCAL", 
+        # "TASSIGN": "SATELLITE",
+    }
+    for key, default_value in time_keywords.items():
+        cube_header[key] = img_header.get(key, default_value)
+
+    return cube_header, wcs_table
+
+
+def _set_wcs_table(time_edges):
+    idx = np.arange(len(time_edges), dtype=np.float32)
+
+    wcs_table = Table()
+    wcs_table["TimeIndex"] = [idx]
+    # wcs_table["TimeCoord"] = [time] << u.s
+    wcs_table["TimeCoord"] = [time_edges] << u.s
+    wcs_table.meta["EXTNAME"] = "WCS-table"
+    
+    return fits.BinTableHDU(wcs_table)
+
 
 
 def save_to_fits(data, output_path):
