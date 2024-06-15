@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class Exposure:
     def __init__(self, event_list_file, attitude_file=None, eband="SOFT", **kwargs):
         self.files = ExposureFiles(event_list_file, attitude_file)
-        self.orientation, self.camera, self.obsid, self.expid = self._set_attributes()
+        self.orientation, self.camera, self.filter, self.obsid, self.expid = self._set_attributes()
         self.eband = Eband[eband]
         self.data = ExposureData(self.files, self.camera.tag, self.eband, **kwargs)
 
@@ -36,11 +36,11 @@ class Exposure:
         orientation = Orientation(header["RA_NOM"], header["DEC_NOM"], header["PA_PNT"])
         camera = Camera(header["INSTRUME"], orientation)
 
-        return orientation, camera, header["OBS_ID"], header["EXPIDSTR"]
+        return orientation, camera, header["FILTER"], header["OBS_ID"], header["EXPIDSTR"]
 
     def __repr__(self) -> str:
         return (
-            f"Exp.ID: {self.expid} [{self.camera} camera], Obs.ID: {self.obsid}\n"
+            f"Exp.ID: {self.expid} [{self.camera} camera, {self.filter} filter], Obs.ID: {self.obsid}\n"
             f"Energy band for products: {self.eband.name} "
             f"({self.eband.min/1000}-{self.eband.max/1000} keV)\n"
             f"Nominal pointing: {self.orientation.pointing.to_string('hmsdms')}\n"
