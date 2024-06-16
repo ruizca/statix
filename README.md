@@ -31,7 +31,7 @@ STATix needs the following software and libraries for a correct installation:
 - [CFITSIO](https://heasarc.gsfc.nasa.gov/fitsio/) (>V3.31)
 - [pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config/)
 
-In Ubuntu (and other Debian based Linux distributions) these dependencies can be installed via ``apt``:
+In Ubuntu (and other Debian-based Linux distributions) these dependencies can be installed via ``apt``:
 
     sudo apt install gcc make cmake libcfitsio* pkg-config
 
