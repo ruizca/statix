@@ -102,16 +102,27 @@ def _pad_image_with_nans(image, level):
 
     logger.debug(f"Padded image with size {n + padding_width_x}x{m + padding_width_y}")
 
-    return np.pad(
+    padded_image = np.pad(
         image,
         [(0, padding_width_x), (0, padding_width_y)],
         mode="constant",
         constant_values=np.nan,
     )
 
+    # Now I make sure that the padded image is square
+    (a, b) = padded_image.shape
+    if a > b:
+        logger.debug(f"Additional padding to size {a}x{a}")
+        padding = ((0, 0), (0, a - b))
+    else:
+        logger.debug(f"Additional padding to size {b}x{b}")
+        padding = ((0, b - a), (0,0))
+
+    return np.pad(padded_image, padding,mode='constant', constant_values=np.nan)
+
 
 def _padding_size(size, level):
-    return int(np.ceil(size / 2 ** level) * 2 ** level - size)
+    return int(np.ceil(size / 2**level) * 2**level - size)
 
 
 def _check_nblocks(nblocks, shape):
