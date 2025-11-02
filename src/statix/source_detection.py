@@ -128,6 +128,7 @@ def msvst2d1d(
     photomode="aperture_psf",
     time_sigma_level=3,
     ecf=7.3866,
+    box_size=3,
     **kwargs,
 ):
     """
@@ -162,6 +163,9 @@ def msvst2d1d(
         Enclosed energy fraction used for the "aperture_psf" photometry
         mode. Available values are 60, 70 and 80, corresponding
         to 60%, 70% anf 80% energy fractions respectively. By defaul 70.
+    box_size : int, optional
+        The size of the local region to search for peaks at every point in the denoised cube.
+        Only used when detmode is "peaks". By default 3.
     **kwargs: arguments for MSVST denoising. Check the documentation of the MSVST
         package for a detail description of the parameters.
 
@@ -194,7 +198,7 @@ def msvst2d1d(
 
     if detmode == "peaks":
         logger.info("Finding peaks in denoised cube...")
-        srclist = peak_detection(cube_msvst_time_integrated, exposure.mask, sigma=6)
+        srclist = peak_detection(cube_msvst_time_integrated, exposure.mask, sigma=6, box_size=box_size)
         image_segmented = None
 
     elif detmode == "segment":
@@ -287,11 +291,11 @@ def _parse_kwargs_psf(exposure, photomode, kwargs):
     return energy, eef
 
 
-def peak_detection(image, mask, sigma=3):
+def peak_detection(image, mask, sigma=3, box_size=3):
     mean, median, std = sigma_clipped_stats(image.data[mask.data > 0], sigma=sigma)
 
     try:
-        srclist = find_peaks(image.data, mean, box_size=3, wcs=image.wcs)
+        srclist = find_peaks(image.data, mean, box_size, wcs=image.wcs)
         srclist["X_IMA"] = srclist["x_peak"].astype(float)
         srclist["Y_IMA"] = srclist["y_peak"].astype(float)
         srclist["EXTENT"] = 4
@@ -301,10 +305,14 @@ def peak_detection(image, mask, sigma=3):
             srclist["DEC"] = srclist["skycoord_peak"].dec
         else:
             srclist["RA"] = np.nan
+            srclist["RA"].unit = "deg"
             srclist["DEC"] = np.nan
+            srclist["DEC"].unit = "deg"
 
     except NoDetectionsWarning:
-        srclist = Table(names=["X_IMA", "Y_IMA", "EXTENT", "RA", "DEC"])
+        srclist = Table(names=["X_IMA", "Y_IMA", "EXTENT", "RA", "DEC", "DET_ML"])
+        srclist["RA"].unit = "deg"
+        srclist["DEC"].unit = "deg"
 
     return srclist
 
@@ -514,12 +522,12 @@ def final_catalog(srclist, photomode, dim=3):
 
 def emldetect(exposure, overwrite=False, **kwargs):
     if not overwrite:
-        logger.warn("Loading previous emldetect run.")
+        logger.warning("Loading previous emldetect run.")
         try:
             return _load_emldetect_catalogue(exposure, **kwargs)
 
         except FileNotFoundError:
-            logger.warn("No emldetect catalogue found!")
+            logger.warning("No emldetect catalogue found!")
 
     logger.info("Running SAS emldetect...")
     xmmsas.emldetect(
