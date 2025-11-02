@@ -33,7 +33,7 @@ class Exposure:
         if header["DATAMODE"] != "IMAGING":
             raise ValueError("This exposure is not in imaging mode.")
 
-        orientation = Orientation(header["RA_NOM"], header["DEC_NOM"], header["PA_PNT"])
+        orientation = Orientation(header["RA_PNT"], header["DEC_PNT"], header["PA_PNT"])
         camera = Camera(header["INSTRUME"], orientation)
 
         return orientation, camera, header["FILTER"], header["OBS_ID"], header["EXPIDSTR"]
@@ -89,6 +89,14 @@ class Exposure:
             raise ValueError(f"Detection method '{method}' is not defined!!!")
 
         return source_detection_algo(self, **kwargs)
+
+    # def ecf(self, nh=None, gamma=1.7):
+    #     ecfs = ecfxa.XMMEPIC(self.camera.name, self.filter, eband=self.eband.name)
+
+    #     if nh is None:
+    #         nh = GasMap.nh(self.orientation.pointing)
+
+    #     return ecfs(nh, gamma)
 
 
 class ExposureFiles:
