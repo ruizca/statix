@@ -199,7 +199,7 @@ def _extract_image(evl_path, imageset, expression):
     )
 
 
-def _extract_zframe(evl_path, expression, return_header=False):
+def _extract_zframe(evl_path, expression):
     with NamedTemporaryFile() as image_file:
         with all_logging_disabled(highest_level=logging.WARNING):
             _extract_image(evl_path, image_file.name, expression)
@@ -209,8 +209,8 @@ def _extract_zframe(evl_path, expression, return_header=False):
 
 
 def _pad_zframe(shape, frame):
-    padding_width_x = shape[2] - frame.shape[0]
-    padding_width_y = shape[1] - frame.shape[1]
+    padding_width_x = shape[2] - frame.shape[1]
+    padding_width_y = shape[1] - frame.shape[0]
 
     frame_padded = np.pad(
         frame, [(0, padding_width_y), (0, padding_width_x)], mode="constant"
@@ -679,7 +679,8 @@ def _srcmatch(evl_path, likemin):
             htmloutput="/dev/null",
         )
     else:
-        logger.warn("No sources detected, summary list is not created.")
+        logger.warning("No sources detected, summary list will be empty.")
+        _make_empty_summarylist(inputlistsets, outputlistset)
 
 
 def _srcmatch_bkg(evl_path, likemin):
@@ -696,4 +697,17 @@ def _srcmatch_bkg(evl_path, likemin):
             htmloutput="/dev/null",
         )
     else:
-        logger.warn("No sources detected, summary list is not created.")
+        logger.warning("No sources detected, summary list will be empty.")
+        _make_empty_summarylist(inputlistsets, outputlistset)
+
+
+def _make_empty_summarylist(inputlistsets, outputlistset):
+    if inputlistsets.exists():
+        outputlist = Table(names=["SRC_NUM", "RA", "DEC", "RADEC_ERR"])
+        outputlist["RA"].unit = "deg"
+        outputlist["DEC"].unit = "deg"
+        outputlist["RADEC_ERR"].unit = "arcsec"
+
+        outputlist.write(outputlistset, format="fits", overwrite=True)
+    else:
+        raise ValueError("emldetect source list %s does not exist!", inputlistsets.name)
