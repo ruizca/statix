@@ -1,3 +1,6 @@
+"""
+Module implementing source detection algorithms based on MSVST denoising.
+"""
 import logging
 import warnings
 

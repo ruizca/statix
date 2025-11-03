@@ -113,3 +113,8 @@ docs/data/pnevt-imgbkg.fits
 docs/data/pnevt-emllist_DETML6.fits
 docs/data/pnevt-eboxlist_m.fits
 docs/data/pnevt-eboxlist_l.fits
+
+# pdoc files
+docs/*.html
+docs/*.js
+docs/statix/

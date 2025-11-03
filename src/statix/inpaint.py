@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon May 31 10:07:05 2021
-
+Inpainting functions for images and cubes with missing data (NaNs).
+    
 @author: ruizca
 """
 import logging
@@ -19,6 +19,34 @@ rng = np.random.default_rng()
 
 
 def image_fill_ccd_gaps(image, mask2d, method="conv", kernel=None, **kwargs):
+    """
+    Fills gaps in a 2D image using the specified method and kernel.
+
+    Parameters
+    ----------
+    image : 2D ndarray
+        Input image with gaps (NaNs) to be filled.
+    mask2d : 2D ndarray
+        2D mask indicating valid (1) and invalid (0) pixels.
+    method : str, optional
+        Method to use for filling the gaps. Options are:
+        - "nanmean": Uses a nan-mean filter.
+        - "conv": Uses astropy convolution to interpolate NaNs.
+        - "mca": Uses Morphological Component Analysis (MCA) for inpainting.
+        Default is "conv".
+    kernel : Kernel2D or None, optional
+        Astropy convolution Kernel. If not None, the input image is 
+        smoothed using this kernel, otherwise it is processed as it is.
+        This step is useful for Poisson images with low background.
+        By default None.
+    **kwargs : additional keyword arguments
+        Additional arguments to pass to the specific reconstruction method.
+
+    Returns
+    -------
+    2D ndarray
+        Image with gaps filled.
+    """
     kernel = _set_kernel(kernel)
     image_nans = image.copy()
     image_nans[mask2d < 1] = np.nan
@@ -32,6 +60,34 @@ def image_fill_ccd_gaps(image, mask2d, method="conv", kernel=None, **kwargs):
 
 
 def cube_fill_ccd_gaps(cube, mask2d, method="conv", kernel=None, **kwargs):
+    """
+    Fills gaps in a 3D cube using the specified method and kernel.
+
+    Parameters
+    ----------
+    cube : 3D ndarray
+        Input cube with gaps (NaNs) to be filled.
+    mask2d : 2D ndarray
+        2D mask indicating valid (1) and invalid (0) pixels.
+    method : str, optional
+        Method to use for filling the gaps. Options are:
+        - "nanmean": Uses a nan-mean filter.
+        - "conv": Uses astropy convolution to interpolate NaNs.
+        - "mca": Uses Morphological Component Analysis (MCA) for inpainting.
+        Default is "conv".
+    kernel : Kernel2D or None, optional
+        Astropy convolution Kernel. If not None, the input image is 
+        smoothed using this kernel, otherwise it is processed as it is.
+        This step is useful for Poisson images with low background.
+        By default None.
+    **kwargs : additional keyword arguments
+        Additional arguments to pass to the specific reconstruction method.
+    
+    Returns
+    -------
+    3D ndarray
+        Cube with gaps filled.
+    """
     kernel = _set_kernel(kernel)
     cube_nans = _masked_pixels_to_nan(cube, mask2d)
     cube_inpaint = np.zeros(cube.shape, dtype=float)

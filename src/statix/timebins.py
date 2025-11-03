@@ -1,3 +1,6 @@
+"""
+Module implementing Bayesian blocks binning of light curves.
+"""
 from itertools import count
 
 import numpy as np
@@ -8,6 +11,32 @@ from .counts import poisson_probability
 
 
 def optimal(lc, sigma_level):
+    """
+    Optimal binning of a light curve using the Bayesian Blocks algorithm.
+
+    Parameters
+    ----------
+    lc : ndarray
+        2D array with shape (nframes, 2) containing the source and background
+        counts per frame.
+    sigma_level : float
+        Probability level in sigma units for selecting significant bins.
+    
+    Returns
+    -------
+    lc_bb : ndarray
+        2D array with shape (nbins, 4) containing the optimal binned light curve.
+        The columns are: (nframes, src_counts, bkg_counts, significant_flag).
+    src_counts : float
+        Total source counts in the optimal bins.
+    bkg_counts : float
+        Total background counts in the optimal bins.
+    log_prob : float
+        Logarithm of the Poisson probability of the source counts given the
+        background counts.
+    frames_bitflag : int
+        Bitflag indicating which frames belong to significant Bayesian blocks.
+    """
     threshold = erfc(sigma_level/np.sqrt(2))
 
     zedges_lo, zedges_hi, lc_bb = _optimal_binning(lc, threshold)

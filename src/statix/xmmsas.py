@@ -1,4 +1,7 @@
-# -*- coding: utf-8 -*-
+"""
+Module implementing various functions to handle XMM-Newton SAS tasks.
+All functions need a working SAS installation.
+"""
 import logging
 import os
 import warnings
@@ -6,13 +9,12 @@ from datetime import datetime
 from tempfile import NamedTemporaryFile
 
 import numpy as np
+import pxsas
+from astropy import units as u
 from astropy.io import fits
 from astropy.table import Table
 from astropy.wcs import WCS, FITSFixedWarning
 from rich.progress import track
-
-import pxsas
-from astropy import units as u
 
 from .utils import working_directory, all_logging_disabled
 
@@ -23,6 +25,22 @@ IMG_YSIZE = 600
 
 
 def make_ccf(path, date=None):
+    """
+    Create the CCF file in the given path. If date is None, use the calibration for the current date.
+    
+    Parameters
+    ----------
+    path : pathlib.Path
+        Path where to create the CCF file.
+    date : str or None, optional
+        Date for the calibration file in ISO format (YYYY-MM-DDTHH:MM:SS). 
+        If None, use the current date. By default None.
+
+    Returns
+    -------
+    pathlib.Path
+        Path to the created CCF file.
+    """
     if date is None:
         date = datetime.now()
         date = date.isoformat()
@@ -42,6 +60,27 @@ def make_ccf(path, date=None):
 
 
 def make_image(evl_path, detector="PN", emin=500, emax=2000, flag=0):
+    """
+    Create an image from the event list.
+
+    Parameters
+    ----------
+    evl_path : pathlib.Path
+        Path to the event list.
+    detector : str, optional
+        Detector name ("PN" or "MOS"), by default "PN".
+    emin : int, optional
+        Minimum energy channel, by default 500.
+    emax : int, optional
+        Maximum energy channel, by default 2000.
+    flag : int, optional
+        Flag to apply, by default 0.
+
+    Returns
+    -------
+    pathlib.Path
+        Path to the created image file.
+    """
     imageset = _set_imageset(evl_path)
     expression = _set_image_expression(detector, emin, emax, flag)
 
@@ -53,6 +92,31 @@ def make_image(evl_path, detector="PN", emin=500, emax=2000, flag=0):
 def make_cube(
     evl_path, detector="PN", emin=500, emax=2000, flag=0, zsize=32, use_gti=True
 ):
+    """
+    Create a 3D image cube from the event list.
+
+    Parameters
+    ----------
+    evl_path : pathlib.Path
+        Path to the event list.
+    detector : str, optional
+        Detector name ("PN" or "MOS"), by default "PN".
+    emin : int, optional
+        Minimum energy channel, by default 500.
+    emax : int, optional
+        Maximum energy channel, by default 2000.
+    flag : int, optional
+        Flag to apply, by default 0.
+    zsize : int, optional
+        Size of the z-axis, by default 32.
+    use_gti : bool, optional
+        Use GTI information to define the time bins, by default True.
+
+    Returns
+    -------
+    pathlib.Path
+        Path to the created cube file.
+    """
     cubeset = _set_cubeset(evl_path)
     cube = _set_cube(evl_path, zsize)
 
@@ -77,6 +141,25 @@ def make_expmap(
     emin=500,
     emax=2000,
 ):
+    """
+    Create an exposure map from the event list and attitude file.
+
+    Parameters
+    ----------
+    evl_path : pathlib.Path
+        Path to the event list.
+    att_path : pathlib.Path
+        Path to the attitude file.
+    emin : int, optional
+        Minimum energy channel, by default 500.
+    emax : int, optional
+        Maximum energy channel, by default 2000.
+
+    Returns
+    -------
+    pathlib.Path
+        Path to the created exposure map file.
+    """
     set_sas_ccf(evl_path.parent)
 
     imageset = _set_imageset(evl_path)
@@ -110,6 +193,31 @@ def emldetect(
     ecf=7.3866,
     bkg_path=None,
 ):
+    """
+    Run the emldetect SAS source detection task. Intermediate products
+    (images, exposure maps, background maps) are created as needed. For 
+    using a custom background map, a previous run with the default background 
+    is required.
+
+    Parameters
+    ----------
+    evl_path : pathlib.Path
+        Path to the event list.
+    att_path : pathlib.Path
+        Path to the attitude file.
+    detector : str, optional
+        Detector name ("PN" or "MOS"), by default "PN".
+    likemin : int, optional
+        Minimum likelihood for source detection, by default 10.
+    emin : int, optional
+        Minimum energy channel, by default 500.
+    emax : int, optional
+        Maximum energy channel, by default 2000.
+    ecf : float, optional
+        Energy conversion factor, by default 7.3866.
+    bkg_path : pathlib.Path, optional
+        Path to custom background file, by default None. 
+    """
     set_sas_ccf(evl_path.parent)
 
     with working_directory(evl_path.parent):
@@ -456,6 +564,9 @@ def save_to_fits(data, output_path):
 
 
 def set_sas_odf(path):
+    """
+    Set the SAS_ODF environment variable to the given path.
+    """
     # `path` is either the ODF folder, or the PPS folder
     # where a summary file for the ODF has been generated
     path_absolute = path.resolve()
@@ -468,11 +579,31 @@ def set_sas_odf(path):
 
 
 def set_sas_ccf(path, ccf_file="ccf.cif"):
+    """
+    Set the SAS_CCF environment variable to the given CCF file in the given path.
+    """
     path_absolute = path.resolve() / ccf_file
     os.environ["SAS_CCF"] = path_absolute.as_posix()
 
 
 def event_list_from_odf(odf_path, pps_path, detector="PN"):
+    """
+    Generate the event list from the ODF path and return the list of event list files.
+
+    Parameters
+    ----------
+    odf_path : pathlib.Path
+        Path to the ODF folder.
+    pps_path : pathlib.Path
+        Path to the PPS folder where the event lists will be created.
+    detector : str, optional
+        Detector name ("PN" or "MOS"), by default "PN".
+
+    Returns
+    -------
+    list of pathlib.Path
+        List of event list files.
+    """
     set_sas_odf(odf_path)
     set_sas_ccf(pps_path)
 
@@ -509,6 +640,18 @@ def _find_event_lists(pps_path, detector):
 
 
 def filter_event_list(evl_path, pps_path, **kwargs):
+    """
+    Filter the event list using the espfilt SAS task.
+
+    Parameters
+    ----------
+    evl_path : pathlib.Path
+        Path to the event list.
+    pps_path : pathlib.Path
+        Path to the PPS folder where the filtered event list will be created.
+    **kwargs : dict, optional
+        Additional keyword arguments to pass to the espfilt task.
+    """
     with working_directory(pps_path):
         # pxsas.run("espfilt", eventset=evl_path.as_posix())  ## SAS 19
         pxsas.run("espfilt", eventfile=evl_path.as_posix(), **kwargs)  ## SAS 20

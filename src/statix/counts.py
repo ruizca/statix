@@ -1,3 +1,6 @@
+"""
+Module implementing source counts extraction and photometry methods.
+"""
 import logging
 
 import numpy as np

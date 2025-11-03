@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Jul  6 10:55:26 2021
-
-@author: ruizca
+Module implementing the Exposure class for XMM-Newton data.
 """
 import logging
 import math
@@ -21,6 +19,74 @@ logger = logging.getLogger(__name__)
 
 
 class Exposure:
+    """
+    Class representing an XMM-Newton exposure. It contains methods
+    for loading and processing the data, as well as for source detection.
+    Intermediate products such as images, cubes, exposure maps, masks,
+    and background maps are generated on-the-fly as needed if they do not
+    already exist.
+
+    Parameters
+    ----------
+    event_list_file : str
+        Path to the event list file.
+    attitude_file : str, optional
+        Path to the attitude file.
+    eband : str, optional
+        Energy band to use (default is "SOFT").
+    **kwargs : keyword arguments
+        Additional keyword arguments to pass to the data loading.
+    
+    Attributes
+    ----------
+    orientation : Orientation
+        Orientation of the exposure.
+    camera : Camera
+        Camera used for the exposure.
+    filter : str
+        Filter used for the exposure.
+    obsid : str
+        Observation ID of the exposure.
+    expid : str
+        Exposure ID of the exposure.
+    eband : Eband
+        Energy band object representing the selected energy band.
+    files : ExposureFiles
+        Object containing the paths to the relevant files for the exposure.
+    data : ExposureData
+        Object containing the data for the exposure.
+
+    Properties
+    ----------
+    image : Image
+        The 2D image of the exposure.
+    cube : Cube
+        The 3D data cube of the exposure.
+    cube_inpaint : Cube
+        The inpainted 3D data cube of the exposure.
+    expmap : ExpMap
+        The exposure map of the exposure.
+    mask : Mask
+        The mask of the exposure.
+    mask_fov : Mask
+        The field of view mask of the exposure.
+    bkgimage : BkgImage
+        The background image of the exposure.
+    bkgcube : BkgCube
+        The background cube of the exposure.
+
+    Methods
+    -------
+    detect_sources(method='msvst2d1d', **kwargs)
+        Detect sources in the exposure using the specified method.
+        This method wraps the source detection algorithms available in the
+        source_detection module.
+        It takes the following parameters:
+        - method: The detection method to use (default is 'msvst2d1d').
+        - **kwargs: Additional keyword arguments to pass to the detection algorithm.
+    
+    """
+    
     def __init__(self, event_list_file, attitude_file=None, eband="SOFT", **kwargs):
         self.files = ExposureFiles(event_list_file, attitude_file)
         self.orientation, self.camera, self.filter, self.obsid, self.expid = self._set_attributes()
@@ -90,16 +156,37 @@ class Exposure:
 
         return source_detection_algo(self, **kwargs)
 
-    # def ecf(self, nh=None, gamma=1.7):
-    #     ecfs = ecfxa.XMMEPIC(self.camera.name, self.filter, eband=self.eband.name)
-
-    #     if nh is None:
-    #         nh = GasMap.nh(self.orientation.pointing)
-
-    #     return ecfs(nh, gamma)
-
 
 class ExposureFiles:
+    """
+    Class to manage the file paths related to an XMM-Newton exposure. 
+    It is assumed that files follow the default naming convention of SAS.
+
+    Parameters
+    ----------
+    event_list_file : str
+        Path to the event list file.
+    attitude_file : str, optional
+        Path to the attitude file.
+    
+    Attributes
+    ----------
+    evt : Path
+        Path to the event list file.
+    att : Path or None
+        Path to the attitude file.
+    exp : Path
+        Path to the exposure map file.
+    img : Path
+        Path to the image file.
+    mask : Path
+        Path to the mask file.
+    cube : Path
+        Path to the data cube file.
+    cube_inpaint : Path
+        Path to the inpainted data cube file.
+    """
+
     def __init__(self, event_list_file, attitude_file):
         self.evt = Path(event_list_file)
         self.att = self._set_att(attitude_file)
@@ -134,6 +221,43 @@ class ExposureFiles:
 
 
 class ExposureData:
+    """
+    Class to manage the data related to an XMM-Newton exposure. It loads and processes
+    the data as needed.
+
+    Parameters
+    ----------
+    files : ExposureFiles
+        Object containing the paths to the relevant files for the exposure.
+    camera : str
+        Camera tag (e.g., 'pn', 'mos1', 'mos2').
+    eband : Eband
+        Energy band object representing the selected energy band.
+    zsize : int or 'auto', optional
+        Number of frames in the data cube. If 'auto', it is calculated based on the
+        background count rate. Default is 'auto'.
+    **kwargs : keyword arguments
+        Additional keyword arguments for background cube calculation. See BkgCube class for details.
+
+    Attributes
+    ----------
+    image : Image
+        The 2D image of the exposure.
+    cube : Cube
+        The 3D data cube of the exposure.
+    cube_inpaint : Cube
+        The inpainted 3D data cube of the exposure.
+    expmap : ExpMap
+        The exposure map of the exposure.
+    mask : Mask
+        The mask of the exposure.
+    mask_fov : Mask
+        The field of view mask of the exposure.
+    bkgimage : BkgImage
+        The background image of the exposure.
+    bkgcube : BkgCube
+        The background cube of the exposure.
+    """
     def __init__(self, files, camera, eband, zsize="auto", **kwargs):
         self.files = files
         self.camera = camera

@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Jul  6 11:04:16 2021
-
-@author: ruizca
+Module handling image and cube data for XMM-Newton.
 """
 import logging
 import warnings
@@ -30,6 +28,9 @@ except ImportError as e:
 
 
 class ImageBase:
+    """
+    Base class for Image and Cube objects.
+    """
     def __init__(self, filename=None, data=None, wcs=None):
         if filename:
             self.data, self.wcs, _ = self._read(filename)
@@ -79,6 +80,36 @@ class ImageBase:
 
 
 class Image(ImageBase):
+    """
+    Image class.
+    
+    Parameters
+    ----------
+    filename : str, optional 
+        Path to a FITS file to read the image from.
+    data : ndarray, optional
+        2D array with image data.
+    wcs : WCS, optional
+        WCS object for the image.
+
+    Attributes
+    ----------
+    data : ndarray
+        2D array with image data.
+    wcs : WCS
+        WCS object for the image.
+    shape : tuple
+        Shape of the image data array.
+
+    Methods
+    -------
+    fill_gaps(mask, method="conv", kernel=None): 
+        Returns a new Image object with the gaps defined in mask filled with counts.
+    denoise(output_file=None, **kwargs): 
+        Returns a new Image object denoised using MSVST2D.
+    make(event_list_file, **kwargs): 
+        Class method to create an Image from an event list file using SAS.
+    """
     def fill_gaps(self, mask, method="conv", kernel=None):
         """
         Returns a new Image object with the gaps defined in mask filled with counts.
@@ -107,12 +138,78 @@ class Image(ImageBase):
 
 
 class ExpMap(ImageBase):
+    """
+    Exposure map class.
+
+    Parameters
+    ----------
+    filename : str, optional
+        Path to a FITS file to read the exposure map from.
+    data : ndarray, optional
+        2D array with exposure map data.
+    wcs : WCS, optional
+        WCS object for the exposure map.
+
+    Attributes
+    ----------
+    data : ndarray
+        2D array with exposure map data.
+    wcs : WCS
+        WCS object for the exposure map.
+    shape : tuple
+        Shape of the exposure map data array.
+
+    Methods
+    -------
+    make(event_list_file, attitude_file, **kwargs): 
+        Class method to create an ExposureMap from event list and attitude files using SAS.
+    """
     @classmethod
     def make(cls, event_list_file, attitude_file, **kwargs):
         xmmsas.make_expmap(event_list_file, attitude_file, **kwargs)
 
 
 class Cube(ImageBase):
+    """
+    Cube class.
+
+    Parameters
+    ----------
+    filename : str, optional
+        Path to a FITS file to read the cube from.
+    data : ndarray, optional
+        3D array with cube data.
+    wcs : WCS, optional
+        WCS object for the cube.
+    gti : Table, optional
+        Table with Good Time Intervals.
+
+    Attributes
+    ----------
+    data : ndarray
+        3D array with cube data.
+    wcs : WCS
+        WCS object for the cube.
+    gti : Table
+        Table with Good Time Intervals.
+    shape : tuple
+        Shape of the cube data array.
+    time_edges : ndarray
+        Time edges of the cube frames.
+    time_midpoints : ndarray
+        Time midpoints of the cube frames.
+    time_integrated : Image
+        Image object with the time-integrated data.
+
+    Methods
+    -------
+    fill_gaps(mask, method="conv", kernel=None, filename=None, **kwargs): 
+        Returns a new Cube object with the gaps defined in mask filled with counts.
+    denoise(output_file=None, **kwargs): 
+        Returns a new Cube object denoised using MSVST2D1D.
+    make(event_list_file, **kwargs): 
+        method to create a Cube from an event list file using SAS.
+    """
     def __init__(self, filename=None, data=None, wcs=None, gti=None):
         if filename:
             self.data, self.wcs, self.gti = self._read(filename)
@@ -203,6 +300,29 @@ class Cube(ImageBase):
 
 
 class Mask:
+    """
+    Mask class.
+    This class is used to create and apply masks to images and cubes.
+
+    Parameters
+    ----------
+    expmap : str or ExposureMap 
+        Path to SAS generated mask or ExposureMap object.
+    fexp : float, optional
+        Fraction of the maximum exposure to define the exposure limit for the mask. Default is 0.3.
+    fov : bool, optional
+        If True, the mask is created based on the field of view (FOV) using MOC. If False, the mask is created based on the
+        exposure map values. Default is False.
+    is_mask : bool, optional
+        If True, the input expmap is already a mask. Default is False.
+
+    Attributes
+    ----------
+    data : ndarray
+        2D array with the mask data.
+    shape : tuple
+        Shape of the mask data array.
+    """
     def __init__(self, expmap, fexp=0.3, fov=False, is_mask=False):
         if is_mask:
             self.data = fits.getdata(expmap)

@@ -1,3 +1,6 @@
+"""
+Module implementing background estimation for images and cubes.
+"""
 import logging
 import warnings
 
@@ -14,6 +17,17 @@ logger = logging.getLogger(__name__)
 
 
 class BkgArray:
+    """
+    Base class for background arrays (images or cubes).
+
+    The outline of the method to estimate background maps is as follows:
+    1. Identify source regions in the input data using MSVST denoising and
+       peak detection.
+    2. Empty the source regions in the data.
+    3. Fill the empty source regions with counts sampled from surrounding
+       background regions.
+    4. Optionally convolve the resulting background data to smooth it.    
+    """
     def _load_data(self, filename):
         return fits.getdata(filename)
 
@@ -87,6 +101,37 @@ class BkgArray:
 
 
 class BkgImage(BkgArray):
+    """
+    Background image class.
+
+    Parameters
+    ----------
+    image : Image
+        Image object containing the data to process.
+    mask : Mask, optional
+        Mask object defining the valid pixels. If None,
+        all pixels are considered valid. Default is None.
+    sigma_level : float, optional
+        Sigma level for source detection. Default is 3.
+    radius_factor : float, optional
+        Factor to scale the source region radius. Default is 1.0.
+    convolve : bool, optional
+        Whether to convolve the background image to smooth it. Default is False.
+
+    Attributes
+    ----------
+    data : ndarray
+        2D array containing the background image data.
+    mask : Mask
+        Mask object defining the valid pixels.
+    src_regions : list
+        List of source regions identified in the image.
+
+    Methods
+    -------
+    average_counts_per_pixel(): 
+        Calculate the average counts per pixel in the background image.
+    """
     def __init__(
         self, image, mask=None, sigma_level=3, radius_factor=1.0, convolve=False, **kwargs
     ):
@@ -164,6 +209,34 @@ class BkgImage(BkgArray):
 
 
 class BkgCube(BkgArray):
+    """
+    Background cube class.
+
+    Parameters
+    ----------
+    cube : Cube
+        Cube object containing the data to process.
+    mask : Mask, optional
+        Mask object defining the valid pixels. If None, all pixels are considered valid. Default is None.
+    sigma_level : float, optional
+        Sigma level for source detection. Default is 3.
+    radius_factor : float, optional
+        Factor to scale the source region radius. Default is 1.0.
+    convolve : bool, optional
+        Whether to convolve the background cube to smooth it. Default is False.
+    inpaint : bool, optional
+        Whether to inpaint the image before source detection. Default is False.
+    **kwargs : Additional keyword arguments for the convolution method.
+
+    Attributes
+    ----------
+    data : ndarray
+        3D array containing the background cube data.
+    mask : Mask
+        Mask object defining the valid pixels.
+    src_regions : list
+        List of source regions identified in the time-integrated image.
+    """
     def __init__(
         self, cube, mask=None, sigma_level=3, radius_factor=1.0, convolve=False, inpaint=False, **kwargs
     ):

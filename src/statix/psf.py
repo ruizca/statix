@@ -1,3 +1,6 @@
+"""
+Module to handle PSF data and calculations.
+"""
 from importlib import resources
 
 from astropy import units as u
@@ -6,6 +9,26 @@ from astropy.table import Table
 
 
 def get_data(det_coords, energy, eef, remove_bad=True):
+    """
+    Get PSF data for given detector coordinates, energy and EEF.
+
+    Parameters
+    ----------
+    det_coords : DetCoord
+        Detector coordinates of the sources.
+    energy : int
+        Energy in eV at which to get the PSF data.
+    eef : int
+        Encircled Energy Fraction (EEF) percentage (60, 70, or 80).
+    remove_bad : bool, optional
+        Whether to remove bad PSF entries from the PSF table. Default is True.
+
+    Returns
+    -------
+    psfdata : Table
+        Table containing PSF parameters for each source, including:
+        semimajor axis (PSF_a), semiminor axis (PSF_b), and position angle (PSF_pa).
+    """
     # Returns an array for each `det_coord` with the PSF's
     # semimajor axis, semiminor axis and position angle
     if eef not in [60, 70, 80]:
@@ -19,6 +42,23 @@ def get_data(det_coords, energy, eef, remove_bad=True):
 
 
 def grid(detector, energy, remove_bad=True):
+    """
+    Load PSF grid data for a given detector and energy.
+
+    Parameters
+    ----------
+    detector : str
+        Detector name. One of "EPN", "EMOS1", "EMOS2".
+    energy : int
+        Energy in eV at which to load the PSF grid.
+    remove_bad : bool, optional
+        Whether to remove bad PSF entries from the PSF table. Default is True.
+
+    Returns
+    -------
+    psfgrid : Table
+        Table containing the PSF grid data.
+    """
     # Open psf table and get PSF params
     ref = resources.files("statix.data").joinpath(f"psf_{detector}_{energy}.fits")
     with resources.as_file(ref) as psfgrid_file:
@@ -37,6 +77,21 @@ def grid(detector, energy, remove_bad=True):
 
 
 def find_neighbours_in_grid(psfgrid, det_coords):
+    """
+    Find nearest PSF grid entries for given detector coordinates.
+
+    Parameters
+    ----------
+    psfgrid : Table
+        PSF grid data.
+    det_coords : DetCoord
+        Detector coordinates of the sources.
+
+    Returns
+    -------
+    neighbours : Table
+        Table containing the nearest PSF grid entries for each source.
+    """
     # find the nearest point in the psf table for each source
     psfgrid_coords = SkyCoord(psfgrid["DETX"], psfgrid["DETY"], frame=det_coords.frame,)
     psfgrid_coords.frame.name = det_coords.frame.name

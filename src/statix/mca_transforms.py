@@ -1,3 +1,6 @@
+"""
+Module implementing various transforms for MCA.
+"""
 import numpy as np
 from pywt import swt2, iswt2, threshold
 from scipy.fft import dctn, idctn

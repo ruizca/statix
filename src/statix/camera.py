@@ -1,3 +1,7 @@
+"""
+Module implementing the XMM-Newton EPIC camera class and orientation.
+"""
+
 from functools import cached_property
 
 from astropy import units as u
@@ -5,6 +9,33 @@ from astropy.coordinates import SkyCoord, SkyOffsetFrame
 
 
 class Camera:
+    """
+    XMM-Newton EPIC camera class.
+
+    Parameters
+    ----------
+    name : str
+        Camera name. One of "EPN", "EMOS1", "EMOS2".
+    orientation : Orientation, optional
+        Orientation object containing the nominal pointing and position angle
+        of the camera. Needed to transform between sky coordinates and detector
+        coordinates. Default is None.
+
+    Attributes
+    ----------
+    name : str
+        Camera name. One of "EPN", "EMOS1", "EMOS2".
+    type : str
+        Camera type. Either "pn" or "mos".
+    orientation : Orientation
+        Orientation object containing the nominal pointing
+        and position angle of the camera.
+
+    Methods
+    -------
+    coordinates(sky_coords): 
+        Convert sky coordinates to detector coordinates.
+    """
     NAMES = ["EPN", "EMOS1", "EMOS2"]
     ANGLES = {"EPN": 90 - 360, "EMOS1": -180, "EMOS2": 90 - 360}
 
@@ -70,6 +101,25 @@ class Camera:
 
 
 class Orientation:
+    """
+    Orientation of an XMM-Newton EPIC camera.
+
+    Parameters
+    ----------
+    ra_nom : float
+        Nominal right ascension in degrees.
+    dec_nom : float
+        Nominal declination in degrees.
+    pa : float
+        Position angle in degrees.
+
+    Attributes
+    ----------
+    pointing : SkyCoord
+        Nominal pointing of the camera.
+    pa : Quantity
+        Position angle of the camera in degrees.
+    """
     def __init__(self, ra_nom, dec_nom, pa):
         self.pointing = self._set_pointing_skycoord(ra_nom, dec_nom)
         self.pa = self._set_pa_deg(pa)
