@@ -6,7 +6,7 @@ import logging
 import numpy as np
 from astropy.coordinates import SkyCoord
 from astropy.table import hstack
-from photutils import SourceCatalog
+from photutils.segmentation import SourceCatalog
 from photutils.aperture import (
     aperture_photometry,
     CircularAperture,
