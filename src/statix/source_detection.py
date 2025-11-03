@@ -13,17 +13,10 @@ from photutils.detection import find_peaks
 from photutils.segmentation import deblend_sources, detect_sources, SourceCatalog
 from photutils.utils.exceptions import NoDetectionsWarning
 
-from . import counts, timebins
+from . import counts, timebins, xmmsas
 
 logger = logging.getLogger(__name__)
 warnings.filterwarnings("error", category=NoDetectionsWarning)
-
-try:
-    from . import xmmsas
-
-except ImportError as e:
-    logger.warn(e)
-    logger.warn("SAS-related functions not available!!!")
 
 
 def msvst2d(

@@ -9,7 +9,6 @@ from datetime import datetime
 from tempfile import NamedTemporaryFile
 
 import numpy as np
-import pxsas
 from astropy import units as u
 from astropy.io import fits
 from astropy.table import Table
@@ -19,6 +18,13 @@ from rich.progress import track
 from .utils import working_directory, all_logging_disabled
 
 logger = logging.getLogger(__name__)
+
+try:
+    import pxsas
+
+except ImportError as e:
+    logger.warning(e)
+    logger.warning("SAS-related functions not available!!!")
 
 IMG_XSIZE = 600
 IMG_YSIZE = 600
