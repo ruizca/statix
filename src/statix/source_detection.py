@@ -9,12 +9,8 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.stats import sigma_clipped_stats
 from astropy.table import Table
-from photutils import (
-    deblend_sources,
-    detect_sources,
-    SourceCatalog,
-    find_peaks,
-)
+from photutils.detection import find_peaks
+from photutils.segmentation import deblend_sources, detect_sources, SourceCatalog
 from photutils.utils.exceptions import NoDetectionsWarning
 
 from . import counts, timebins
