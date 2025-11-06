@@ -53,7 +53,7 @@ def detect_sources(id, simulations_path, photomode="aperture", logtofile=True):
             max_scalez=4,
         )
 
-        srclist_path = set_srclist_path(exp.files, f"{photomode_tag}_tt{tthresh}", sigma_level)
+        srclist_path = set_srclist_path(exp.files, f"{photomode_tag}_tt{time_sigma_level}", sigma_level)
         srclist_msvst.write(srclist_path.as_posix(), format="fits", overwrite=True)
 
         cube_msvst_path = set_cube_msvst_path(exp.files, photomode_tag, sigma_level)
