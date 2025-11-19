@@ -27,7 +27,7 @@ jobs:
 
       # ADJUST THIS: install all dependencies (including pdoc)
       - run: pip install -e .
-      - run: pip install pdoc
+      - run: pip install pdoc matplotlib
       # ADJUST THIS: build your documentation into docs/.
       # We use a custom build script for pdoc itself, ideally you just run `pdoc -o docs/ ...` here.
       - run: pdoc src/statix -o docs --docformat numpy --logo "https://www.astro.noa.gr/wp-content/uploads/2020/01/logo-en-white-1.png" --no-include-undocumented --footer-text "© A. Ruiz 2025 - IAASARS/NOA"
