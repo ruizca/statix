@@ -287,7 +287,7 @@ def peak_detection(image, mask, sigma=3, box_size=3):
     mean, median, std = sigma_clipped_stats(image.data[mask.data > 0], sigma=sigma)
 
     try:
-        srclist = find_peaks(image.data, mean, box_size, wcs=image.wcs)
+        srclist = find_peaks(image.data, mean, box_size=box_size, wcs=image.wcs)
         srclist["X_IMA"] = srclist["x_peak"].astype(float)
         srclist["Y_IMA"] = srclist["y_peak"].astype(float)
         srclist["EXTENT"] = 4
