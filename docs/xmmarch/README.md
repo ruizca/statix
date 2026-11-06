@@ -1,0 +1,11 @@
+# Application of STATiX to the XMM-Newton Archive
+## Mining the XMM-Newton X-ray Sky in Three Dimensions: The STATiX Variable Source Catalogue
+
+This directory includes a selection of notebooks demonstrating how to use the STATiX catalogue of XMM-Newton variable and transient sources. These are identified by applying STATiX to the XMM-Newton archive as described in Pouliasis et al. (2026). The notebooks showcase the selection of different classes of variable and transient sources (e.g. Fast X-ray Transients, Quasi Periodic Erruptions, Tidal Disruption Events etc) presented by Pouliasis et al. (2026).
+
+The catalogues read by the notebooks are available at [Zenodo](https://zenodo.org/records/23879451). The functionality of each notebook is briefly explained below: 
+
+* ```01_QPO_candidates.ipynb```: demonstrates how to identify candidate sources exhibiting recurrent, quasi-periodic flux modulations in the STATiX variable source catalogue, STATIX_VC_published.fits. Required modules: ```numpy```, ```matplotlib```, ```astropy```.
+* ```02_QPE_candidates.ipynb```: reproduces the QPE candidate search described in the paper. Required modules: ```numpy```, ```matplotlib```, ```astropy```, ```scipy```.
+* ```03_FXT_candidates.ipynb```: reproduces the extragalactic Fast X-ray Transient (FXT) candidate search described in the paper. Required modules: ```numpy```, ```matplotlib```, ```astropy```,```scipy```.
+* ```04_Galactic_HR_diagram.ipynb```: reproduces the Hertzsprung-Russell (HR) diagram analysis and SIMBAD/NED classification breakdown of the Galactic STATiX variable sources described in the paper. Required modules: ```time```, ```pathlib```, ```numpy```, ```matplotlib```, ```collections```, ```astropy```, ```astroquery```, ```tqdm``` (optional). This script also requires the file ```MIST_iso_69148a306bac4.iso.cmd``` (available on [Zenodo](https://zenodo.org/records/23879451)) containing stellar isochrones on the Gaia magnitude system. The Gaia DR3 photometry for the subset of STATiX variable sources associated with Galactic stars (gaia_photometry.csv) is also available at [Zenodo](https://zenodo.org/records/23879451), although functionality is offered to query the Gaia DR3 archive and create this file.
